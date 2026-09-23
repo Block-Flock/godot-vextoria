@@ -1713,7 +1713,9 @@ void MeshStorage::_multimesh_mark_dirty(MultiMesh *multimesh, int p_index, bool 
 		multimesh->data_cache_used_dirty_regions++;
 	}
 
-	if (p_aabb) {
+	// Vextoria static clusters install a conservative custom AABB for each chunk.
+	// Instance transforms cannot invalidate that bound, so skip aggregate rebuilding.
+	if (p_aabb && multimesh->custom_aabb == AABB()) {
 		multimesh->aabb_dirty = true;
 	}
 
@@ -1736,7 +1738,8 @@ void MeshStorage::_multimesh_mark_all_dirty(MultiMesh *multimesh, bool p_data, b
 		}
 	}
 
-	if (p_aabb) {
+	// A caller-supplied custom AABB is authoritative; avoid redundant aggregate work.
+	if (p_aabb && multimesh->custom_aabb == AABB()) {
 		multimesh->aabb_dirty = true;
 	}
 
