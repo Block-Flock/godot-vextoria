@@ -1,0 +1,9 @@
+#!/usr/bin/env python
+from misc.utility.scons_hints import *
+
+Import("env")
+Import("env_modules")
+
+env_vextoria_core = env_modules.Clone()
+env_vextoria_core.add_source_files(env.modules_sources, "register_types.cpp")
+env_vextoria_core.add_source_files(env.modules_sources, "vextoria_instance.cpp")
