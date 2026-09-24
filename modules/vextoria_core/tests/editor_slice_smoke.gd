@@ -23,6 +23,15 @@ func _find_tree_item(item: TreeItem, expected: String) -> TreeItem:
 		child = child.get_next()
 	return null
 
+func _find_node_named(parent: Node, expected_name: String) -> Node:
+	if parent.name == expected_name:
+		return parent
+	for child in parent.get_children():
+		var found := _find_node_named(child, expected_name)
+		if found != null:
+			return found
+	return null
+
 func _run_smoke() -> void:
 	await get_tree().process_frame
 	for native_class in ["Part", "Model", "Folder", "VextoriaScript"]:
@@ -33,60 +42,85 @@ func _run_smoke() -> void:
 			_fail("native class is not in the scene tree hierarchy: " + native_class)
 			return
 
-	EditorInterface.popup_create_dialog(func(_created: Object) -> void: pass, "Node")
-	await get_tree().process_frame
-	await get_tree().process_frame
-	var create_dialog_has_part := false
-	for tree in EditorInterface.get_base_control().find_children("*", "Tree", true, false):
-		if _find_tree_item(tree.get_root(), "Part") != null:
-			create_dialog_has_part = true
-			var popup: Node = tree
-			while popup != null and not popup is Window:
-				popup = popup.get_parent()
-			if popup is Window:
-				(popup as Window).hide()
-			break
-	if not create_dialog_has_part:
-		_fail("Godot CreateDialog did not list the native Part class")
-		return
-
 	var root: Node = EditorInterface.get_edited_scene_root()
 	if root == null:
 		root = Node.new()
 		root.name = "VextoriaEditorSliceSmoke"
 		EditorInterface.add_root_node(root)
-
-	var part: Node = ClassDB.instantiate("Part") as Node
-	if part == null:
-		_fail("ClassDB did not create a native Part Node")
-		return
-	part.name = "NativePart"
-	root.add_child(part)
-	part.owner = root
-	if root.find_child("NativePart", false, false) != part:
-		_fail("the edited scene tree does not contain the authoritative native Part")
-		return
-
 	await get_tree().process_frame
-	await get_tree().process_frame
-	var explorer_tree: Tree = null
-	var native_part_item: TreeItem = null
-	for tree in EditorInterface.get_base_control().find_children("*", "Tree", true, false):
-		var candidate: TreeItem = _find_tree_item(tree.get_root(), "NativePart")
-		if candidate != null:
-			explorer_tree = tree
-			native_part_item = candidate
+
+	# Invoke SceneTreeDock's real Add/Create button. This opens its private
+	# CreateDialog, whose create signal is wired to SceneTreeDock::_create().
+	var add_button: Button = null
+	for button in EditorInterface.get_base_control().find_children("*", "Button", true, false):
+		if button.tooltip_text == "Add/Create a New Node.":
+			add_button = button
 			break
-	if explorer_tree == null:
-		_fail("SceneTreeDock did not display the native Part")
+	if add_button == null:
+		_fail("SceneTreeDock Add/Create button was not found")
 		return
-	explorer_tree.set_selected(native_part_item, 0)
+	add_button.pressed.emit()
 	await get_tree().process_frame
 	await get_tree().process_frame
+
+	var create_dialog: ConfirmationDialog = null
+	var create_tree: Tree = null
+	var part_item: TreeItem = null
+	for tree in EditorInterface.get_base_control().find_children("*", "Tree", true, false):
+		var candidate := _find_tree_item(tree.get_root(), "Part")
+		if candidate == null:
+			continue
+		var ancestor: Node = tree
+		while ancestor != null and not ancestor is ConfirmationDialog:
+			ancestor = ancestor.get_parent()
+		if ancestor is ConfirmationDialog:
+			create_dialog = ancestor
+			create_tree = tree
+			part_item = candidate
+			break
+	if create_dialog == null or part_item == null:
+		_fail("SceneTreeDock CreateDialog did not list the native Part class")
+		return
+
+	create_tree.set_selected(part_item, 0)
+	await get_tree().process_frame
+	if create_dialog.get_ok_button().disabled:
+		_fail("CreateDialog marked native Part non-instantiable")
+		return
+	create_dialog.get_ok_button().pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	root = EditorInterface.get_edited_scene_root()
+	var part := _find_node_named(root, "Part")
+	if part == null or part.get_class() != "Part":
+		_fail("SceneTreeDock/CreateDialog did not insert an actual native Part")
+		return
+	if part.get_parent() != root or part.owner != root:
+		_fail("CreateDialog Part was not added and owned by the edited scene")
+		return
+
 	var selection: EditorSelection = EditorInterface.get_selection()
 	if not selection.get_selected_nodes().has(part):
-		_fail("SceneTreeDock selection did not select the native Part through EditorSelection")
+		_fail("SceneTreeDock Create action did not select the native Part through EditorSelection")
 		return
+
+	var explorer_tree: Tree = null
+	var part_tree_item: TreeItem = null
+	for tree in EditorInterface.get_base_control().find_children("*", "Tree", true, false):
+		var candidate: TreeItem = _find_tree_item(tree.get_root(), "Part")
+		if candidate != null:
+			# SceneTreeDock tree entries carry the native NodePath as metadata.
+			var metadata: Variant = candidate.get_metadata(0)
+			if metadata == part.get_path():
+				explorer_tree = tree
+				part_tree_item = candidate
+				break
+	if explorer_tree == null:
+		_fail("SceneTreeDock did not display the created native Part")
+		return
+	explorer_tree.set_selected(part_tree_item, 0)
+	await get_tree().process_frame
 
 	EditorInterface.inspect_object(part)
 	await get_tree().process_frame
@@ -109,5 +143,5 @@ func _run_smoke() -> void:
 		_fail("Inspector-visible Part.Size did not round-trip")
 		return
 
-	print(PASS_MARKER + ": CreateDialog, SceneTreeDock selection, EditorSelection, Inspector identity, Size/Color")
+	print(PASS_MARKER + ": actual SceneTreeDock CreateDialog insertion, native Part, EditorSelection, Inspector identity, Size/Color")
 	get_tree().quit(0)
