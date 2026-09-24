@@ -656,6 +656,14 @@ public:
 	virtual void joint_set_solver_priority(RID p_joint, int p_priority) = 0;
 	virtual int joint_get_solver_priority(RID p_joint) const = 0;
 
+	// Vextoria exposes Jolt's existing per-constraint iteration overrides through
+	// the generic server contract. Backends without an override keep their normal
+	// solver budget; JoltPhysicsServer3D already implements these exact methods.
+	virtual void joint_set_solver_velocity_iterations(RID, int) {}
+	virtual int joint_get_solver_velocity_iterations(RID) { return 0; }
+	virtual void joint_set_solver_position_iterations(RID, int) {}
+	virtual int joint_get_solver_position_iterations(RID) { return 0; }
+
 	virtual void joint_disable_collisions_between_bodies(RID p_joint, bool p_disable) = 0;
 	virtual bool joint_is_disabled_collisions_between_bodies(RID p_joint) const = 0;
 

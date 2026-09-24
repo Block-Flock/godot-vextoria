@@ -39,6 +39,11 @@ void HingeJoint3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_flag", "flag", "enabled"), &HingeJoint3D::set_flag);
 	ClassDB::bind_method(D_METHOD("get_flag", "flag"), &HingeJoint3D::get_flag);
 
+	ClassDB::bind_method(D_METHOD("set_reference_frame_b_global", "global_frame"), &HingeJoint3D::set_reference_frame_b_global);
+	ClassDB::bind_method(D_METHOD("get_reference_frame_b_global"), &HingeJoint3D::get_reference_frame_b_global);
+	ClassDB::bind_method(D_METHOD("clear_reference_frame_b_global"), &HingeJoint3D::clear_reference_frame_b_global);
+	ClassDB::bind_method(D_METHOD("has_reference_frame_b_global"), &HingeJoint3D::has_reference_frame_b_global);
+
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "params/bias", PROPERTY_HINT_RANGE, "0.00,0.99,0.01"), "set_param", "get_param", PARAM_BIAS);
 
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "angular_limit/enable"), "set_flag", "get_flag", FLAG_USE_LIMIT);
@@ -97,17 +102,49 @@ bool HingeJoint3D::get_flag(Flag p_flag) const {
 	return flags[p_flag];
 }
 
+void HingeJoint3D::set_reference_frame_b_global(const Transform3D &p_frame) {
+	reference_frame_b_global = p_frame.orthonormalized();
+	reference_frame_b_global_enabled = true;
+	if (is_configured()) {
+		_update_joint();
+	}
+	update_gizmos();
+}
+
+Transform3D HingeJoint3D::get_reference_frame_b_global() const {
+	return reference_frame_b_global;
+}
+
+void HingeJoint3D::clear_reference_frame_b_global() {
+	if (!reference_frame_b_global_enabled) {
+		return;
+	}
+	reference_frame_b_global_enabled = false;
+	if (is_configured()) {
+		_update_joint();
+	}
+	update_gizmos();
+}
+
+bool HingeJoint3D::has_reference_frame_b_global() const {
+	return reference_frame_b_global_enabled;
+}
+
 void HingeJoint3D::_configure_joint(RID p_joint, PhysicsBody3D *body_a, PhysicsBody3D *body_b) {
 	Transform3D gt = get_global_transform();
 	Transform3D ainv = body_a->get_global_transform().affine_inverse();
 
 	Transform3D local_a = ainv * gt;
 	local_a.orthonormalize();
-	Transform3D local_b = gt;
+
+	// Vextoria/Roblox compatibility: body B may own a distinct authored hole
+	// frame. Keep upstream shared-frame behavior unless the override is enabled.
+	Transform3D global_b = reference_frame_b_global_enabled ? reference_frame_b_global : gt;
+	Transform3D local_b = global_b;
 
 	if (body_b) {
 		Transform3D binv = body_b->get_global_transform().affine_inverse();
-		local_b = binv * gt;
+		local_b = binv * global_b;
 	}
 
 	local_b.orthonormalize();

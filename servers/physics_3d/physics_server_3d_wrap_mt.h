@@ -388,6 +388,13 @@ public:
 	FUNC2(joint_set_solver_priority, RID, int);
 	FUNC1RC(int, joint_get_solver_priority, RID);
 
+	// Vextoria: forward optional backend constraint-iteration overrides through
+	// the MT wrapper instead of silently falling back to PhysicsServer3D's no-op.
+	FUNC2(joint_set_solver_velocity_iterations, RID, int);
+	FUNC1R(int, joint_get_solver_velocity_iterations, RID);
+	FUNC2(joint_set_solver_position_iterations, RID, int);
+	FUNC1R(int, joint_get_solver_position_iterations, RID);
+
 	FUNC2(joint_disable_collisions_between_bodies, RID, bool);
 	FUNC1RC(bool, joint_is_disabled_collisions_between_bodies, RID);
 

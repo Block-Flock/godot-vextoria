@@ -106,6 +106,8 @@ void Joint3D::_update_joint(bool p_only_free) {
 	}
 
 	PhysicsServer3D::get_singleton()->joint_set_solver_priority(joint, solver_priority);
+	PhysicsServer3D::get_singleton()->joint_set_solver_velocity_iterations(joint, solver_velocity_iterations);
+	PhysicsServer3D::get_singleton()->joint_set_solver_position_iterations(joint, solver_position_iterations);
 
 	if (body_a) {
 		ba = body_a->get_rid();
@@ -169,6 +171,28 @@ int Joint3D::get_solver_priority() const {
 	return solver_priority;
 }
 
+void Joint3D::set_solver_velocity_iterations(int p_iterations) {
+	solver_velocity_iterations = MAX(p_iterations, 0);
+	if (joint.is_valid()) {
+		PhysicsServer3D::get_singleton()->joint_set_solver_velocity_iterations(joint, solver_velocity_iterations);
+	}
+}
+
+int Joint3D::get_solver_velocity_iterations() const {
+	return solver_velocity_iterations;
+}
+
+void Joint3D::set_solver_position_iterations(int p_iterations) {
+	solver_position_iterations = MAX(p_iterations, 0);
+	if (joint.is_valid()) {
+		PhysicsServer3D::get_singleton()->joint_set_solver_position_iterations(joint, solver_position_iterations);
+	}
+}
+
+int Joint3D::get_solver_position_iterations() const {
+	return solver_position_iterations;
+}
+
 void Joint3D::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_POST_ENTER_TREE: {
@@ -222,6 +246,10 @@ void Joint3D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_solver_priority", "priority"), &Joint3D::set_solver_priority);
 	ClassDB::bind_method(D_METHOD("get_solver_priority"), &Joint3D::get_solver_priority);
+	ClassDB::bind_method(D_METHOD("set_solver_velocity_iterations", "iterations"), &Joint3D::set_solver_velocity_iterations);
+	ClassDB::bind_method(D_METHOD("get_solver_velocity_iterations"), &Joint3D::get_solver_velocity_iterations);
+	ClassDB::bind_method(D_METHOD("set_solver_position_iterations", "iterations"), &Joint3D::set_solver_position_iterations);
+	ClassDB::bind_method(D_METHOD("get_solver_position_iterations"), &Joint3D::get_solver_position_iterations);
 
 	ClassDB::bind_method(D_METHOD("set_exclude_nodes_from_collision", "enable"), &Joint3D::set_exclude_nodes_from_collision);
 	ClassDB::bind_method(D_METHOD("get_exclude_nodes_from_collision"), &Joint3D::get_exclude_nodes_from_collision);
@@ -231,6 +259,8 @@ void Joint3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "node_a", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "PhysicsBody3D"), "set_node_a", "get_node_a");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "node_b", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "PhysicsBody3D"), "set_node_b", "get_node_b");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "solver_priority", PROPERTY_HINT_RANGE, "1,8,1"), "set_solver_priority", "get_solver_priority");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "solver_velocity_iterations", PROPERTY_HINT_RANGE, "0,64,1"), "set_solver_velocity_iterations", "get_solver_velocity_iterations");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "solver_position_iterations", PROPERTY_HINT_RANGE, "0,64,1"), "set_solver_position_iterations", "get_solver_position_iterations");
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "exclude_nodes_from_collision"), "set_exclude_nodes_from_collision", "get_exclude_nodes_from_collision");
 }

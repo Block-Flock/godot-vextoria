@@ -57,6 +57,13 @@ public:
 protected:
 	real_t params[PARAM_MAX];
 	bool flags[FLAG_MAX];
+
+	// Roblox RotateJoint owns two independent local frames (axle C0 and hole
+	// C1). Upstream HingeJoint3D derives both from this node's one global frame,
+	// which cannot represent a grid-snapped or differently oriented hole frame.
+	bool reference_frame_b_global_enabled = false;
+	Transform3D reference_frame_b_global;
+
 	virtual void _configure_joint(RID p_joint, PhysicsBody3D *body_a, PhysicsBody3D *body_b) override;
 	static void _bind_methods();
 
@@ -66,6 +73,11 @@ public:
 
 	void set_flag(Flag p_flag, bool p_value);
 	bool get_flag(Flag p_flag) const;
+
+	void set_reference_frame_b_global(const Transform3D &p_frame);
+	Transform3D get_reference_frame_b_global() const;
+	void clear_reference_frame_b_global();
+	bool has_reference_frame_b_global() const;
 
 	HingeJoint3D();
 };
