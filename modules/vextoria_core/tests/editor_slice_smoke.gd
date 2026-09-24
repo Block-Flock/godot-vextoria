@@ -81,6 +81,10 @@ func _run_smoke() -> void:
 	if create_dialog == null or part_item == null:
 		_fail("SceneTreeDock CreateDialog did not list the native Part class")
 		return
+	for native_class in ["Model", "Folder", "VextoriaScript"]:
+		if _find_tree_item(create_tree.get_root(), native_class) == null:
+			_fail("SceneTreeDock CreateDialog did not list native class: " + native_class)
+			return
 
 	create_tree.set_selected(part_item, 0)
 	await get_tree().process_frame
@@ -92,23 +96,23 @@ func _run_smoke() -> void:
 	await get_tree().process_frame
 
 	root = EditorInterface.get_edited_scene_root()
-	var part := _find_node_named(root, "Part")
-	if part == null or part.get_class() != "Part":
-		_fail("SceneTreeDock/CreateDialog did not insert an actual native Part")
-		return
-	if part.get_parent() != root or part.owner != root:
-		_fail("CreateDialog Part was not added and owned by the edited scene")
-		return
-
 	var selection: EditorSelection = EditorInterface.get_selection()
-	if not selection.get_selected_nodes().has(part):
-		_fail("SceneTreeDock Create action did not select the native Part through EditorSelection")
+	var part: Node = null
+	for selected_node in selection.get_selected_nodes():
+		if selected_node is Node and selected_node.get_class() == "Part" and selected_node.get_parent() == root:
+			part = selected_node
+			break
+	if part == null:
+		_fail("SceneTreeDock/CreateDialog did not insert and select an actual native Part")
+		return
+	if part.owner != root:
+		_fail("CreateDialog Part was not owned by the edited scene")
 		return
 
 	var explorer_tree: Tree = null
 	var part_tree_item: TreeItem = null
 	for tree in EditorInterface.get_base_control().find_children("*", "Tree", true, false):
-		var candidate: TreeItem = _find_tree_item(tree.get_root(), "Part")
+		var candidate: TreeItem = _find_tree_item(tree.get_root(), part.name)
 		if candidate != null:
 			# SceneTreeDock tree entries carry the native NodePath as metadata.
 			var metadata: Variant = candidate.get_metadata(0)
