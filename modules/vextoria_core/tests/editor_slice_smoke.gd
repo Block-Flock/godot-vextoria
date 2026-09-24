@@ -143,5 +143,26 @@ func _run_smoke() -> void:
 		_fail("Inspector-visible Part.Size did not round-trip")
 		return
 
-	print(PASS_MARKER + ": actual SceneTreeDock CreateDialog insertion, native Part, EditorSelection, Inspector identity, Size/Color")
+	var editor_undo_redo: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
+	var scene_history_id: int = editor_undo_redo.get_object_history_id(part)
+	var undo_stack: UndoRedo = editor_undo_redo.get_history_undo_redo(scene_history_id)
+	if undo_stack == null or not undo_stack.has_undo():
+		_fail("native CreateDialog action was not recorded in EditorUndoRedoManager")
+		return
+	if not undo_stack.undo():
+		_fail("EditorUndoRedoManager could not undo native Part creation")
+		return
+	await get_tree().process_frame
+	if part.get_parent() != null or root.find_child("Part", false, false) != null:
+		_fail("undo did not remove the created native Part from the edited scene")
+		return
+	if not undo_stack.has_redo() or not undo_stack.redo():
+		_fail("EditorUndoRedoManager could not redo native Part creation")
+		return
+	await get_tree().process_frame
+	if part.get_parent() != root or root.find_child("Part", false, false) != part:
+		_fail("redo did not restore the same native Part to the edited scene")
+		return
+
+	print(PASS_MARKER + ": actual SceneTreeDock CreateDialog insertion, native Part, EditorSelection, Inspector identity, Size/Color, EditorUndoRedoManager")
 	get_tree().quit(0)
