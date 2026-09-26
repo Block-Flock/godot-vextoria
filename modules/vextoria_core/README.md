@@ -12,6 +12,12 @@ destroying the body. This preserves the same physics identity across edits.
 `Locked` reads and writes Godot's `_edit_lock_` state, so the Inspector and
 viewport lock action cannot disagree.
 
+The hinge frame split follows the observable C0/C1 contract in
+`ROBLOX-main/App/v8datamodel/JointInstance.cpp` and
+`ROBLOX-main/App/include/v8world/RotateJoint.h`. Body A and body B retain
+independent authored local frames. The native smoke checks the frame and
+solver API; a physical push-door end-to-end test remains a separate gate.
+
 The property names/defaults and separate Anchored/CanCollide semantics were
 compared with `ROBLOX-main/App/v8datamodel/PartInstance.cpp` (constructor,
 `setPartSizeUi`, `setAnchored`, `setCanCollide`). No Roblox source text is
@@ -28,3 +34,6 @@ Smoke coverage:
   selection/Inspector identity, property/transform and create undo, save/reopen.
 - `tests/part_visual_capture.gd`: Vulkan editor-target image of an authored
   native Part, for visual review alongside the executable geometry checks.
+- `tests/hinge_frame_smoke.gd`: fork-level joint solver override and
+  independent body-B hinge frame contract. The engine implementation lives in
+  `scene/3d/physics/joints` and `servers/physics_3d`, not a C# shim.

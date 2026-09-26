@@ -44,6 +44,10 @@ class Joint3D : public Node3D {
 	NodePath b;
 
 	int solver_priority = 1;
+	// Zero means backend default. Roblox-imported welded assemblies can opt into
+	// a stronger Jolt solve without changing the global physics budget.
+	int solver_velocity_iterations = 0;
+	int solver_position_iterations = 0;
 	bool exclude_from_collision = true;
 	String warning;
 	bool configured = false;
@@ -72,6 +76,11 @@ public:
 
 	void set_solver_priority(int p_priority);
 	int get_solver_priority() const;
+
+	void set_solver_velocity_iterations(int p_iterations);
+	int get_solver_velocity_iterations() const;
+	void set_solver_position_iterations(int p_iterations);
+	int get_solver_position_iterations() const;
 
 	void set_exclude_nodes_from_collision(bool p_enable);
 	bool get_exclude_nodes_from_collision() const;
