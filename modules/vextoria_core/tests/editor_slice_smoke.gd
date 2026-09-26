@@ -142,16 +142,55 @@ func _run_smoke() -> void:
 		_fail("ClassDB did not expose Part.Size and Part.Color to the Inspector")
 		return
 
-	part.set("Size", Vector3(5, 2, 3))
-	if part.get("Size") != Vector3(5, 2, 3):
-		_fail("Inspector-visible Part.Size did not round-trip")
-		return
-
 	var editor_undo_redo: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
 	var scene_history_id: int = editor_undo_redo.get_object_history_id(part)
 	var undo_stack: UndoRedo = editor_undo_redo.get_history_undo_redo(scene_history_id)
 	if undo_stack == null or not undo_stack.has_undo():
 		_fail("native CreateDialog action was not recorded in EditorUndoRedoManager")
+		return
+
+	# These are Godot's own Inspector/Node3D properties on the same native Part.
+	# Property and transform edits must share the scene's undo stack with the
+	# SceneTreeDock create action, not a Vextoria-side parallel history.
+	editor_undo_redo.create_action("Edit native Part", UndoRedo.MERGE_DISABLE, part)
+	editor_undo_redo.add_do_property(part, "Size", Vector3(5, 2, 3))
+	editor_undo_redo.add_undo_property(part, "Size", Vector3(4, 1, 2))
+	editor_undo_redo.add_do_property(part, "position", Vector3(8, 4, 2))
+	editor_undo_redo.add_undo_property(part, "position", Vector3.ZERO)
+	editor_undo_redo.commit_action()
+	if part.get("Size") != Vector3(5, 2, 3) or part.position != Vector3(8, 4, 2):
+		_fail("native Part property/transform edit was not applied")
+		return
+	if not undo_stack.undo() or part.get("Size") != Vector3(4, 1, 2) or part.position != Vector3.ZERO:
+		_fail("native Part property/transform undo failed")
+		return
+	if not undo_stack.redo() or part.get("Size") != Vector3(5, 2, 3) or part.position != Vector3(8, 4, 2):
+		_fail("native Part property/transform redo failed")
+		return
+
+	var packed := PackedScene.new()
+	if packed.pack(root) != OK:
+		_fail("Godot could not pack the native Part scene")
+		return
+	var path := "user://vextoria_editor_smoke_%d.tscn" % Time.get_ticks_usec()
+	if ResourceSaver.save(packed, path) != OK:
+		_fail("Godot could not save the native Part scene")
+		return
+	var reopened: PackedScene = ResourceLoader.load(path, "PackedScene", ResourceLoader.CACHE_MODE_IGNORE)
+	if reopened == null:
+		_fail("Godot could not reopen the native Part scene")
+		return
+	var reopened_root := reopened.instantiate()
+	var reopened_part := reopened_root.get_node_or_null(NodePath(String(part.name)))
+	if reopened_part == null or reopened_part.get_class() != "Part" or reopened_part.get("Size") != Vector3(5, 2, 3) or reopened_part.position != Vector3(8, 4, 2):
+		_fail("save/reopen lost native Part identity, Size, or transform")
+		return
+	reopened_root.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+	# The previous history action is the native CreateDialog insertion.
+	if not undo_stack.undo():
+		_fail("could not undo property/transform edit before creation")
 		return
 	if not undo_stack.undo():
 		_fail("EditorUndoRedoManager could not undo native Part creation")
@@ -168,5 +207,8 @@ func _run_smoke() -> void:
 		_fail("redo did not restore the same native Part to the edited scene")
 		return
 
-	print(PASS_MARKER + ": actual SceneTreeDock CreateDialog insertion, native Part, EditorSelection, Inspector identity, Size/Color, EditorUndoRedoManager")
+	selection.clear()
+	EditorInterface.inspect_object(root)
+	await get_tree().process_frame
+	print(PASS_MARKER + ": SceneTreeDock, Inspector, property/transform undo, native save/reopen, creation undo")
 	get_tree().quit(0)
