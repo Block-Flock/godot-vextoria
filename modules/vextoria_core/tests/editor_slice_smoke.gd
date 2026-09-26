@@ -92,18 +92,21 @@ func _run_smoke() -> void:
 		_fail("CreateDialog marked native Part non-instantiable")
 		return
 	create_dialog.get_ok_button().pressed.emit()
-	await get_tree().process_frame
-	await get_tree().process_frame
-
-	root = EditorInterface.get_edited_scene_root()
 	var selection: EditorSelection = EditorInterface.get_selection()
 	var part: Node = null
-	for selected_node in selection.get_selected_nodes():
-		if selected_node is Node and selected_node.get_class() == "Part" and selected_node.get_parent() == root:
-			part = selected_node
+	# The SceneTreeDock create action and selection notification are deferred by
+	# the editor. Wait for its own selection update; do not select the Part here.
+	for attempt in range(30):
+		await get_tree().process_frame
+		root = EditorInterface.get_edited_scene_root()
+		for selected_node in selection.get_selected_nodes():
+			if selected_node is Node and selected_node.get_class() == "Part" and selected_node.get_parent() == root:
+				part = selected_node
+				break
+		if part != null:
 			break
 	if part == null:
-		_fail("SceneTreeDock/CreateDialog did not insert and select an actual native Part")
+		_fail("SceneTreeDock/CreateDialog did not insert and select an actual native Part; root=" + str(root) + " children=" + str(root.get_children()) + " selection=" + str(selection.get_selected_nodes()))
 		return
 	if part.owner != root:
 		_fail("CreateDialog Part was not owned by the edited scene")
