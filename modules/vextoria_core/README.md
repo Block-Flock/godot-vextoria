@@ -9,6 +9,8 @@ children are not independent Vextoria objects and are not serialized; a
 reopened `Part` reconstructs them from its native `Size` and `Color` properties.
 `Anchored` freezes the body and `CanCollide` disables its shape without
 destroying the body. This preserves the same physics identity across edits.
+`Locked` reads and writes Godot's `_edit_lock_` state, so the Inspector and
+viewport lock action cannot disagree.
 
 The property names/defaults and separate Anchored/CanCollide semantics were
 compared with `ROBLOX-main/App/v8datamodel/PartInstance.cpp` (constructor,
@@ -24,3 +26,5 @@ Smoke coverage:
   changes, toggles, save/reopen.
 - `tests/editor_slice_smoke.gd`: real Godot CreateDialog/SceneTreeDock,
   selection/Inspector identity, property/transform and create undo, save/reopen.
+- `tests/part_visual_capture.gd`: Vulkan editor-target image of an authored
+  native Part, for visual review alongside the executable geometry checks.

@@ -45,7 +45,6 @@ class VextoriaInstance : public Node3D {
 	GDCLASS(VextoriaInstance, Node3D);
 
 	bool archivable = true;
-	bool locked = false;
 
 protected:
 	static void _bind_methods();
@@ -53,8 +52,8 @@ protected:
 public:
 	bool is_archivable() const { return archivable; }
 	void set_archivable(bool p_archivable) { archivable = p_archivable; }
-	bool is_locked() const { return locked; }
-	void set_locked(bool p_locked) { locked = p_locked; }
+	bool is_locked() const;
+	void set_locked(bool p_locked);
 };
 
 // A Part is the physics body itself. Its visual and collision children are
@@ -65,7 +64,6 @@ class Part : public RigidBody3D {
 	Vector3 size = Vector3(4, 1, 2);
 	Color color = Color(0.639216, 0.635294, 0.647059);
 	bool archivable = true;
-	bool locked = false;
 	bool anchored = false;
 	bool can_collide = true;
 	MeshInstance3D *visual = nullptr;
@@ -85,8 +83,8 @@ public:
 	void set_color(const Color &p_color);
 	bool is_archivable() const { return archivable; }
 	void set_archivable(bool p_archivable) { archivable = p_archivable; }
-	bool is_locked() const { return locked; }
-	void set_locked(bool p_locked) { locked = p_locked; }
+	bool is_locked() const;
+	void set_locked(bool p_locked);
 	bool is_anchored() const { return anchored; }
 	void set_anchored(bool p_anchored);
 	bool get_can_collide() const { return can_collide; }

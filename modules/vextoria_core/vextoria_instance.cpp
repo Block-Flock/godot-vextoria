@@ -38,6 +38,18 @@
 #include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/material.h"
 
+bool VextoriaInstance::is_locked() const {
+	return has_meta("_edit_lock_");
+}
+
+void VextoriaInstance::set_locked(bool p_locked) {
+	if (p_locked) {
+		set_meta("_edit_lock_", true);
+	} else if (has_meta("_edit_lock_")) {
+		remove_meta("_edit_lock_");
+	}
+}
+
 void VextoriaInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_archivable"), &VextoriaInstance::is_archivable);
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &VextoriaInstance::set_archivable);
@@ -65,6 +77,18 @@ Part::Part() {
 	collision->set_name("Collision");
 	collision->set_shape(box_shape);
 	add_child(collision, false, INTERNAL_MODE_BACK);
+}
+
+bool Part::is_locked() const {
+	return has_meta("_edit_lock_");
+}
+
+void Part::set_locked(bool p_locked) {
+	if (p_locked) {
+		set_meta("_edit_lock_", true);
+	} else if (has_meta("_edit_lock_")) {
+		remove_meta("_edit_lock_");
+	}
 }
 
 void Part::set_size(const Vector3 &p_size) {
