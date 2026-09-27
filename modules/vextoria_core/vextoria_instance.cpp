@@ -179,6 +179,11 @@ void Part::set_can_collide(bool p_can_collide) {
 	collision->set_disabled(!can_collide);
 }
 
+void Part::reset_builtin_geometry() {
+	visual->set_mesh(box_mesh);
+	collision->set_shape(box_shape);
+}
+
 void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_size"), &Part::get_size);
 	ClassDB::bind_method(D_METHOD("set_size", "size"), &Part::set_size);
@@ -192,6 +197,7 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_anchored", "anchored"), &Part::set_anchored);
 	ClassDB::bind_method(D_METHOD("get_can_collide"), &Part::get_can_collide);
 	ClassDB::bind_method(D_METHOD("set_can_collide", "can_collide"), &Part::set_can_collide);
+	ClassDB::bind_method(D_METHOD("reset_builtin_geometry"), &Part::reset_builtin_geometry);
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "Size"), "set_size", "get_size");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "Color"), "set_color", "get_color");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");

@@ -11,6 +11,11 @@ reopened `Part` reconstructs them from its native `Size` and `Color` properties.
 destroying the body. This preserves the same physics identity across edits.
 `Locked` reads and writes Godot's `_edit_lock_` state, so the Inspector and
 viewport lock action cannot disagree.
+The gameplay Brick path now retains this native `BoxMesh`/`BoxShape3D` pair at
+the authored `Size` instead of replacing it with a managed unit resource and
+scaling it a second time. `reset_builtin_geometry` restores that pair when a
+Part changes from an authored non-box shape back to Brick. Other shape variants
+still use the client resource path pending native geometry and collision ports.
 
 `Model` is spatial (`Node3D`); `Folder` and `VextoriaScript` are non-spatial
 Godot `Node`s. This matches the recovered Roblox inheritance distinction

@@ -28,6 +28,13 @@ func _run() -> void:
 	assert(visual.mesh is BoxMesh and visual.mesh.size == Vector3(3, 2, 5), "Size must change native mesh")
 	assert(collision.shape is BoxShape3D and collision.shape.size == Vector3(3, 2, 5), "Size must change native collision")
 	assert(visual_material != null and visual_material.albedo_color.is_equal_approx(Color(0.8, 0.2, 0.1)), "Color must change native material")
+	# Gameplay may temporarily install a non-box shape. Switching back to Brick
+	# must restore the native resources at the current authored size.
+	visual.mesh = BoxMesh.new()
+	collision.shape = BoxShape3D.new()
+	part.call("reset_builtin_geometry")
+	assert(visual.mesh is BoxMesh and visual.mesh.size == Vector3(3, 2, 5), "Brick did not restore native visual size")
+	assert(collision.shape is BoxShape3D and collision.shape.size == Vector3(3, 2, 5), "Brick did not restore native collision size")
 
 	await physics_frame
 	await physics_frame

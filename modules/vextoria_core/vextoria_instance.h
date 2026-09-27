@@ -93,6 +93,9 @@ public:
 	void set_anchored(bool p_anchored);
 	bool get_can_collide() const { return can_collide; }
 	void set_can_collide(bool p_can_collide);
+	// Restore the native box geometry after a gameplay Part switches back from
+	// an authored non-box shape. Size remains authoritative on this native node.
+	void reset_builtin_geometry();
 };
 
 // Roblox Model is a PVInstance: unlike Folder, it has a spatial frame.
