@@ -12,6 +12,17 @@ destroying the body. This preserves the same physics identity across edits.
 `Locked` reads and writes Godot's `_edit_lock_` state, so the Inspector and
 viewport lock action cannot disagree.
 
+`Model` is spatial (`Node3D`); `Folder` and `VextoriaScript` are non-spatial
+Godot `Node`s. This matches the recovered Roblox inheritance distinction
+(`ModelInstance` derives from `PVInstance`, while `Folder` derives from
+`Instance`). Native non-spatial Vextoria containers opt into a narrow
+`Node3D` pass-through in the fork: a Part nested under Folder/Script still
+inherits its nearest Model frame and visibility. Ordinary Godot Nodes do not
+opt in. Reparenting a Folder/Script with `keep_global_transform=true` saves
+the first spatial descendants' world frames, so moving a folder between
+models does not silently move its parts. This is implemented in engine/node
+and native class behavior, not a mirrored Creator Explorer.
+
 The hinge frame split follows the observable C0/C1 contract in
 `ROBLOX-main/App/v8datamodel/JointInstance.cpp` and
 `ROBLOX-main/App/include/v8world/RotateJoint.h`. Body A and body B retain
@@ -37,3 +48,6 @@ Smoke coverage:
 - `tests/hinge_frame_smoke.gd`: fork-level joint solver override and
   independent body-B hinge frame contract. The engine implementation lives in
   `scene/3d/physics/joints` and `servers/physics_3d`, not a C# shim.
+- `tests/native_hierarchy_smoke.gd`: Model/Folder/Script/Part ClassDB ancestry,
+  real Godot parentage, transform/visibility pass-through, CFrame-preserving
+  Folder reparent, ordinary-Node isolation, and PackedScene save/reopen.

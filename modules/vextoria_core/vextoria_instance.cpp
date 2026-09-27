@@ -32,11 +32,51 @@
 #include "vextoria_instance.h"
 
 #include "core/object/class_db.h"
+#include "core/templates/local_vector.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
 #include "scene/resources/3d/box_shape_3d.h"
 #include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/material.h"
+
+VextoriaInstance::VextoriaInstance() {
+	// Roblox Folder/Script have no CFrame, but spatial descendants must still
+	// inherit the nearest Model/Part frame. Node3D honors this opt-in marker.
+	set_meta("_vextoria_spatial_passthrough", true);
+}
+
+static void collect_passthrough_spatial_roots(Node *p_node, LocalVector<Node3D *> &r_roots) {
+	for (int i = 0; i < p_node->get_child_count(false); ++i) {
+		Node *child = p_node->get_child(i, false);
+		if (Node3D *spatial = Object::cast_to<Node3D>(child)) {
+			r_roots.push_back(spatial);
+		} else if (child->has_meta("_vextoria_spatial_passthrough")) {
+			collect_passthrough_spatial_roots(child, r_roots);
+		}
+	}
+}
+
+void VextoriaInstance::reparent(RequiredParam<Node> p_parent, bool p_keep_global_transform) {
+	if (!p_keep_global_transform) {
+		Node::reparent(p_parent, false);
+		return;
+	}
+
+	// A Folder/Script has no own transform for Node::reparent to preserve.
+	// Preserve the world frames of its first spatial descendants instead; all
+	// deeper Node3Ds continue to inherit from those roots normally.
+	LocalVector<Node3D *> spatial_roots;
+	collect_passthrough_spatial_roots(this, spatial_roots);
+	LocalVector<Transform3D> world_frames;
+	world_frames.reserve(spatial_roots.size());
+	for (Node3D *spatial : spatial_roots) {
+		world_frames.push_back(spatial->get_global_transform());
+	}
+	Node::reparent(p_parent, true);
+	for (uint32_t i = 0; i < spatial_roots.size(); ++i) {
+		spatial_roots[i]->set_global_transform(world_frames[i]);
+	}
+}
 
 bool VextoriaInstance::is_locked() const {
 	return has_meta("_edit_lock_");
@@ -55,6 +95,27 @@ void VextoriaInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &VextoriaInstance::set_archivable);
 	ClassDB::bind_method(D_METHOD("is_locked"), &VextoriaInstance::is_locked);
 	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &VextoriaInstance::set_locked);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
+}
+
+bool Model::is_locked() const {
+	return has_meta("_edit_lock_");
+}
+
+void Model::set_locked(bool p_locked) {
+	if (p_locked) {
+		set_meta("_edit_lock_", true);
+	} else if (has_meta("_edit_lock_")) {
+		remove_meta("_edit_lock_");
+	}
+}
+
+void Model::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("is_archivable"), &Model::is_archivable);
+	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &Model::set_archivable);
+	ClassDB::bind_method(D_METHOD("is_locked"), &Model::is_locked);
+	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &Model::set_locked);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 }

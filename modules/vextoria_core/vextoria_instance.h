@@ -32,6 +32,7 @@
 #pragma once
 
 #include "core/math/color.h"
+#include "scene/main/node.h"
 #include "scene/3d/node_3d.h"
 #include "scene/3d/physics/rigid_body_3d.h"
 
@@ -41,8 +42,10 @@ class CollisionShape3D;
 class MeshInstance3D;
 class StandardMaterial3D;
 
-class VextoriaInstance : public Node3D {
-	GDCLASS(VextoriaInstance, Node3D);
+// Non-spatial Roblox Instances (folders and scripts) belong in Godot's Node
+// tree without acquiring a transform or a viewport gizmo.
+class VextoriaInstance : public Node {
+	GDCLASS(VextoriaInstance, Node);
 
 	bool archivable = true;
 
@@ -50,10 +53,12 @@ protected:
 	static void _bind_methods();
 
 public:
+	VextoriaInstance();
 	bool is_archivable() const { return archivable; }
 	void set_archivable(bool p_archivable) { archivable = p_archivable; }
 	bool is_locked() const;
 	void set_locked(bool p_locked);
+	void reparent(RequiredParam<Node> p_parent, bool p_keep_global_transform = true) override;
 };
 
 // A Part is the physics body itself. Its visual and collision children are
@@ -91,11 +96,20 @@ public:
 	void set_can_collide(bool p_can_collide);
 };
 
-class Model : public VextoriaInstance {
-	GDCLASS(Model, VextoriaInstance);
+// Roblox Model is a PVInstance: unlike Folder, it has a spatial frame.
+class Model : public Node3D {
+	GDCLASS(Model, Node3D);
+
+	bool archivable = true;
 
 protected:
-	static void _bind_methods() {}
+	static void _bind_methods();
+
+public:
+	bool is_archivable() const { return archivable; }
+	void set_archivable(bool p_archivable) { archivable = p_archivable; }
+	bool is_locked() const;
+	void set_locked(bool p_locked);
 };
 
 class Folder : public VextoriaInstance {

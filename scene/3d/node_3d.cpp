@@ -41,6 +41,24 @@
 #include "servers/display/accessibility_server.h"
 #include "servers/rendering/rendering_server.h"
 
+// Vextoria's non-spatial Instance containers can appear between a Model and
+// its Parts. Preserve the actual Godot Node ownership chain while letting a
+// Node3D inherit the nearest spatial ancestor through opted-in containers.
+// Ordinary Godot Nodes continue to break spatial inheritance as before.
+static Node3D *find_spatial_parent_through_vextoria(Node *p_parent) {
+	Node *parent = p_parent;
+	while (parent) {
+		if (Node3D *spatial = Object::cast_to<Node3D>(parent)) {
+			return spatial;
+		}
+		if (!parent->has_meta("_vextoria_spatial_passthrough")) {
+			return nullptr;
+		}
+		parent = parent->get_parent();
+	}
+	return nullptr;
+}
+
 /*
 
  possible algorithms:
@@ -152,10 +170,7 @@ void Node3D::_notification(int p_what) {
 			ERR_MAIN_THREAD_GUARD;
 			ERR_FAIL_NULL(get_tree());
 
-			Node *p = get_parent();
-			if (p) {
-				data.parent = Object::cast_to<Node3D>(p);
-			}
+			data.parent = find_spatial_parent_through_vextoria(get_parent());
 
 			if (data.parent) {
 				data.index_in_parent = data.parent->data.node3d_children.size();
@@ -693,7 +708,7 @@ Node3D *Node3D::get_parent_node_3d() const {
 		return nullptr;
 	}
 
-	return Object::cast_to<Node3D>(get_parent());
+	return find_spatial_parent_through_vextoria(get_parent());
 }
 
 Transform3D Node3D::get_relative_transform(const Node *p_parent) const {
