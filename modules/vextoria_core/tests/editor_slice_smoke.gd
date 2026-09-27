@@ -47,7 +47,25 @@ func _run_smoke() -> void:
 		root = Node.new()
 		root.name = "VextoriaEditorSliceSmoke"
 		EditorInterface.add_root_node(root)
-	await get_tree().process_frame
+	# A newly installed edited-scene root is propagated to SceneTreeDock on
+	# deferred editor updates. Do not click Create until its tree shows that root.
+	var root_visible := false
+	for attempt in range(60):
+		await get_tree().process_frame
+		for tree in EditorInterface.get_base_control().find_children("*", "Tree", true, false):
+			if _find_tree_item(tree.get_root(), root.name) != null:
+				root_visible = true
+				break
+		if root_visible:
+			break
+	if not root_visible:
+		_fail("SceneTreeDock did not display the edited-scene root")
+		return
+	# Editor startup can still restore its active scene tab after the tree first
+	# shows a programmatically installed root. Let that initial tab switch settle
+	# before testing CreateDialog's own selection behavior.
+	for attempt in range(30):
+		await get_tree().process_frame
 
 	# Invoke SceneTreeDock's real Add/Create button. This opens its private
 	# CreateDialog, whose create signal is wired to SceneTreeDock::_create().
@@ -91,8 +109,8 @@ func _run_smoke() -> void:
 	if create_dialog.get_ok_button().disabled:
 		_fail("CreateDialog marked native Part non-instantiable")
 		return
-	create_dialog.get_ok_button().pressed.emit()
 	var selection: EditorSelection = EditorInterface.get_selection()
+	create_dialog.get_ok_button().pressed.emit()
 	var part: Node = null
 	# The SceneTreeDock create action and selection notification are deferred by
 	# the editor. Wait for its own selection update; do not select the Part here.
