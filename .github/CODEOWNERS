@@ -80,6 +80,9 @@
 
 # Modules
 
+# Vextoria native engine integration
+/modules/vextoria_core/                       @Block-Flock
+
 ## Audio (+ video)
 /modules/interactive_music/                   @godotengine/audio
 /modules/interactive_music/doc_classes/       @godotengine/audio @godotengine/documentation
