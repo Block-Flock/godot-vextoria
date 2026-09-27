@@ -1,0 +1,61 @@
+extends SceneTree
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
+	assert(ClassDB.class_exists("VextoriaExplorerTree"), "native Explorer control is missing")
+	var source := Node.new()
+	source.name = "Workspace"
+	root.add_child(source)
+	var explorer: Tree = ClassDB.instantiate("VextoriaExplorerTree")
+	root.add_child(explorer)
+	explorer.call("set_source_root", source)
+	var source_item: TreeItem = explorer.call("get_item_for_node", source)
+	assert(source_item != null and source_item.get_text(0) == "Workspace")
+
+	var model: Node3D = ClassDB.instantiate("Model")
+	model.name = "House"
+	model.set_meta("_vextoria_instance", true)
+	source.add_child(model)
+	var folder: Node = ClassDB.instantiate("Folder")
+	folder.name = "Door Group"
+	folder.set_meta("_vextoria_instance", true)
+	model.add_child(folder)
+	var implementation := Node.new()
+	implementation.name = "Implementation"
+	folder.add_child(implementation)
+	var part: RigidBody3D = ClassDB.instantiate("Part")
+	part.name = "Door"
+	part.set_meta("_vextoria_instance", true)
+	implementation.add_child(part)
+	var model_item: TreeItem = explorer.call("get_item_for_node", model)
+	var folder_item: TreeItem = explorer.call("get_item_for_node", folder)
+	var part_item: TreeItem = explorer.call("get_item_for_node", part)
+	assert(model_item.get_parent() == source_item, "Model is not under Workspace")
+	assert(folder_item.get_parent() == model_item, "Folder is not under Model")
+	assert(part_item.get_parent() == folder_item, "Part must skip unmarked implementation Node")
+	assert(explorer.call("get_item_for_node", implementation) == null, "implementation Node leaked into Explorer")
+	assert(part_item.get_child_count() == 0, "native Part internals leaked into Explorer")
+	assert(explorer.call("get_node_for_item", part_item) == part, "item identity did not resolve to native Part")
+
+	part.name = "Red Door"
+	assert(part_item.get_text(0) == "Red Door", "native rename was not reflected")
+	var second: Node3D = ClassDB.instantiate("Model")
+	second.name = "Other House"
+	second.set_meta("_vextoria_instance", true)
+	source.add_child(second)
+	folder.reparent(second, true)
+	var moved_item: TreeItem = explorer.call("get_item_for_node", folder)
+	assert(moved_item.get_parent() == explorer.call("get_item_for_node", second), "reparent did not follow SceneTree")
+	assert(explorer.call("get_item_for_node", part) != null, "nested Part vanished during reparent")
+	source.move_child(second, 0)
+	await process_frame
+	assert(source_item.get_first_child() == explorer.call("get_item_for_node", second), "native order did not follow SceneTree")
+	folder.free()
+	assert(not is_instance_valid(moved_item), "removed Folder item remained in Explorer")
+	source.free()
+	assert(explorer.call("get_source_root") == null, "freed source root remained bound")
+	explorer.free()
+	print("VEXTORIA_NATIVE_EXPLORER_PASS: hierarchy, identity, rename, reparent, order, removal")
+	quit(0)

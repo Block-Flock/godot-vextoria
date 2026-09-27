@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  register_types.cpp                                                    */
+/*  vextoria_explorer_tree.h                                              */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,28 +28,36 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#include "register_types.h"
+#pragma once
 
-#include "vextoria_explorer_tree.h"
-#include "vextoria_instance.h"
+#include "core/templates/hash_map.h"
+#include "scene/gui/tree.h"
 
-#include "core/object/class_db.h"
+class VextoriaExplorerTree : public Tree {
+	GDCLASS(VextoriaExplorerTree, Tree);
 
-void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
-	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
-		return;
-	}
+	Node *source_root = nullptr;
+	HashMap<Node *, TreeItem *> node_items;
+	HashMap<TreeItem *, Node *> item_nodes;
+	bool order_dirty = false;
 
-	GDREGISTER_ABSTRACT_CLASS(VextoriaInstance);
-	GDREGISTER_CLASS(Part);
-	GDREGISTER_CLASS(Model);
-	GDREGISTER_CLASS(Folder);
-	GDREGISTER_CLASS(VextoriaScript);
-	GDREGISTER_CLASS(VextoriaExplorerTree);
-}
+	void _add_subtree(Node *p_node);
+	void _remove_item(TreeItem *p_item);
+	void _clear_items();
+	void _sync_order_for(Node *p_node, TreeItem *p_parent_item);
+	void _sync_order_children(Node *p_node, TreeItem *p_parent_item, TreeItem *&r_previous);
+	void _node_added(Node *p_node);
+	void _node_removed(Node *p_node);
+	void _node_renamed(Node *p_node);
+	void _tree_changed();
 
-void uninitialize_vextoria_core_module(ModuleInitializationLevel p_level) {
-	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
-		return;
-	}
-}
+protected:
+	static void _bind_methods();
+	void _notification(int p_what);
+
+public:
+	void set_source_root(Node *p_root);
+	Node *get_source_root() const { return source_root; }
+	TreeItem *get_item_for_node(Node *p_node) const;
+	Node *get_node_for_item(TreeItem *p_item) const;
+};
