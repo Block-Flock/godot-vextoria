@@ -37,6 +37,17 @@ collider directly. This does not port every legacy shape generator or the
 managed Shape enum; material behavior and touch/assembly mirrors are still
 separate migration work.
 
+`AppearanceMaterial` is an authored Material Resource on the native Part.
+The Part instances it privately and owns tint application to BaseMaterial3D
+albedo or an authored ShaderMaterial's Color-typed `color` uniform. Tint never
+modifies the shared authored resource. Duplication and scene save/reopen retain
+the source resource and create independent applied materials. Resource.changed
+rebuilds the applied instance; Godot's material parameter setters do not emit
+that signal themselves, so programmatic source edits must call emit_changed.
+The client normal-map setting now does so explicitly. Material asset selection,
+complete legacy rendering semantics and touch/assembly mirrors remain outside
+this native appearance slice.
+
 `Model` is spatial (`Node3D`); `Folder` and `VextoriaScript` are non-spatial
 Godot `Node`s. This matches the recovered Roblox inheritance distinction
 (`ModelInstance` derives from `PVInstance`, while `Folder` derives from

@@ -28,6 +28,29 @@ func _run() -> void:
 	assert(visual.mesh is BoxMesh and visual.mesh.size == Vector3(3, 2, 5), "Size must change native mesh")
 	assert(collision.shape is BoxShape3D and collision.shape.size == Vector3(3, 2, 5), "Size must change native collision")
 	assert(visual_material != null and visual_material.albedo_color.is_equal_approx(Color(0.8, 0.2, 0.1)), "Color must change native material")
+	var authored_material := StandardMaterial3D.new()
+	authored_material.albedo_color = Color.BLUE
+	part.set("AppearanceMaterial", authored_material)
+	assert(visual.material_override != authored_material and visual.material_override.albedo_color.is_equal_approx(part.get("Color")), "native tint must use a local material instance")
+	assert(authored_material.albedo_color == Color.BLUE, "native tint modified the shared authored material")
+	var peer: RigidBody3D = ClassDB.instantiate("Part")
+	peer.set("AppearanceMaterial", authored_material)
+	peer.set("Color", Color.GREEN)
+	assert(visual.material_override.albedo_color.is_equal_approx(Color(0.8, 0.2, 0.1)), "another Part changed this Part's tint")
+	authored_material.roughness = 0.23
+	# Godot material parameter setters do not emit Resource.changed themselves.
+	authored_material.emit_changed()
+	assert(is_equal_approx(visual.material_override.roughness, 0.23), "source material edits did not reach native appearance")
+	peer.free()
+	var tint_shader := Shader.new()
+	tint_shader.code = "shader_type spatial; uniform vec4 color : source_color = vec4(1.0); void fragment() { ALBEDO = color.rgb; }"
+	var shader_material := ShaderMaterial.new()
+	shader_material.shader = tint_shader
+	shader_material.set_shader_parameter("color", Color.WHITE)
+	part.set("AppearanceMaterial", shader_material)
+	assert(visual.material_override.get_shader_parameter("color").is_equal_approx(part.get("Color")), "native Part did not tint its authored shader")
+	assert(shader_material.get_shader_parameter("color") == Color.WHITE, "native shader tint leaked into the authored resource")
+	part.set("AppearanceMaterial", authored_material)
 	# Gameplay may temporarily install a non-box shape. Switching back to Brick
 	# must restore the native resources at the current authored size.
 	visual.mesh = BoxMesh.new()
@@ -91,6 +114,7 @@ func _run() -> void:
 	assert(reopened_part.get_class() == "Part", "reload must keep native class")
 	assert(reopened_part.get("Size") == Vector3(3, 2, 5), "reload must keep Size")
 	assert(reopened_part.get("Geometry") == 2 and reopened_part.get_node("Visual").mesh is SphereMesh, "reload lost native resource mesh")
+	assert(reopened_part.get("AppearanceMaterial") is StandardMaterial3D and reopened_part.get_node("Visual").material_override.albedo_color.is_equal_approx(part.get("Color")), "reload lost native authored appearance or per-Part tint")
 	assert(reopened_part.get_node("Collision").shape is SphereShape3D and reopened_part.get_node("Collision").scale.is_equal_approx(Vector3(3, 2, 5)), "reload lost native resource collider or size")
 	assert(reopened_part.get("Anchored") and reopened_part.get("CanCollide"), "reload must keep physics properties")
 	assert(reopened_part.get_child_count() == 0 and reopened_part.get_child_count(true) == 2, "reload must reconstruct only internal geometry")

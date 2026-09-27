@@ -31,6 +31,7 @@
 #include "vextoria_instance.h"
 
 #include "core/object/class_db.h"
+#include "core/object/callable_mp.h"
 #include "core/templates/local_vector.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
@@ -38,6 +39,7 @@
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
 #include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/material.h"
+#include "scene/resources/shader.h"
 #include "scene/resources/surface_tool.h"
 
 VextoriaInstance::VextoriaInstance() {
@@ -145,6 +147,12 @@ bool Part::is_locked() const {
 	return has_meta("_edit_lock_");
 }
 
+Part::~Part() {
+	if (appearance_material.is_valid()) {
+		appearance_material->disconnect_changed(callable_mp(this, &Part::appearance_material_changed));
+	}
+}
+
 void Part::set_locked(bool p_locked) {
 	if (p_locked) {
 		set_meta("_edit_lock_", true);
@@ -171,7 +179,61 @@ void Part::set_size(const Vector3 &p_size) {
 
 void Part::set_color(const Color &p_color) {
 	color = p_color;
+	update_appearance_color();
+}
+
+void Part::update_appearance_color() {
 	material->set_albedo(color);
+	if (BaseMaterial3D *base_material = Object::cast_to<BaseMaterial3D>(applied_appearance.ptr())) {
+		base_material->set_albedo(color);
+	} else if (appearance_uses_color_uniform) {
+		Object::cast_to<ShaderMaterial>(applied_appearance.ptr())->set_shader_parameter(SNAME("color"), color);
+	}
+}
+
+Ref<Material> Part::get_appearance_material() const {
+	return appearance_material;
+}
+
+void Part::set_appearance_material(const Ref<Material> &p_material) {
+	if (appearance_material == p_material) {
+		return;
+	}
+	if (appearance_material.is_valid()) {
+		appearance_material->disconnect_changed(callable_mp(this, &Part::appearance_material_changed));
+	}
+	appearance_material = p_material;
+	if (appearance_material.is_valid()) {
+		appearance_material->connect_changed(callable_mp(this, &Part::appearance_material_changed));
+	}
+	appearance_material_changed();
+}
+
+void Part::appearance_material_changed() {
+	appearance_uses_color_uniform = false;
+	if (appearance_material.is_null()) {
+		applied_appearance.unref();
+		visual->set_material_override(material);
+		return;
+	}
+	// Tint belongs to the Part, never to a shared authored Material asset.
+	applied_appearance = appearance_material->duplicate();
+	ERR_FAIL_COND_MSG(applied_appearance.is_null(), "Part.AppearanceMaterial could not be instanced.");
+	if (ShaderMaterial *shader_material = Object::cast_to<ShaderMaterial>(applied_appearance.ptr())) {
+		Ref<Shader> shader = shader_material->get_shader();
+		if (shader.is_valid()) {
+			List<PropertyInfo> uniforms;
+			shader->get_shader_uniform_list(&uniforms);
+			for (const PropertyInfo &uniform : uniforms) {
+				if (uniform.name == SNAME("color") && uniform.type == Variant::COLOR) {
+					appearance_uses_color_uniform = true;
+					break;
+				}
+			}
+		}
+	}
+	update_appearance_color();
+	visual->set_material_override(applied_appearance);
 }
 
 void Part::set_anchored(bool p_anchored) {
@@ -313,11 +375,14 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_geometry_mesh", "mesh"), &Part::set_geometry_mesh);
 	ClassDB::bind_method(D_METHOD("get_geometry_collision"), &Part::get_geometry_collision);
 	ClassDB::bind_method(D_METHOD("set_geometry_collision", "shape"), &Part::set_geometry_collision);
+	ClassDB::bind_method(D_METHOD("get_appearance_material"), &Part::get_appearance_material);
+	ClassDB::bind_method(D_METHOD("set_appearance_material", "material"), &Part::set_appearance_material);
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "Size"), "set_size", "get_size");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "Geometry", PROPERTY_HINT_ENUM, "Brick,Wedge,Resource"), "set_builtin_geometry_kind", "get_builtin_geometry_kind");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "GeometryMesh", PROPERTY_HINT_RESOURCE_TYPE, "Mesh"), "set_geometry_mesh", "get_geometry_mesh");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "GeometryCollision", PROPERTY_HINT_RESOURCE_TYPE, "Shape3D"), "set_geometry_collision", "get_geometry_collision");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "Color"), "set_color", "get_color");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "AppearanceMaterial", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_appearance_material", "get_appearance_material");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Anchored"), "set_anchored", "is_anchored");

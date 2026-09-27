@@ -44,6 +44,7 @@ class ArrayMesh;
 class Mesh;
 class Shape3D;
 class StandardMaterial3D;
+class Material;
 
 // Non-spatial Roblox Instances (folders and scripts) belong in Godot's Node
 // tree without acquiring a transform or a viewport gizmo.
@@ -81,6 +82,11 @@ class Part : public RigidBody3D {
 	Ref<ArrayMesh> wedge_mesh;
 	Ref<ConvexPolygonShape3D> wedge_shape;
 	Ref<StandardMaterial3D> material;
+	Ref<Material> appearance_material;
+	Ref<Material> applied_appearance;
+	bool appearance_uses_color_uniform = false;
+	void appearance_material_changed();
+	void update_appearance_color();
 	Ref<Mesh> geometry_mesh;
 	Ref<Shape3D> geometry_collision;
 	bool builtin_wedge = false;
@@ -93,6 +99,7 @@ protected:
 
 public:
 	Part();
+	~Part();
 	Vector3 get_size() const { return size; }
 	void set_size(const Vector3 &p_size);
 	Color get_color() const { return color; }
@@ -115,6 +122,8 @@ public:
 	void set_geometry_mesh(const Ref<Mesh> &p_mesh);
 	Ref<Shape3D> get_geometry_collision() const;
 	void set_geometry_collision(const Ref<Shape3D> &p_shape);
+	Ref<Material> get_appearance_material() const;
+	void set_appearance_material(const Ref<Material> &p_material);
 };
 
 // Roblox Model is a PVInstance: unlike Folder, it has a spatial frame.
