@@ -35,8 +35,10 @@
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
 #include "scene/resources/3d/box_shape_3d.h"
+#include "scene/resources/3d/convex_polygon_shape_3d.h"
 #include "scene/resources/3d/primitive_meshes.h"
 #include "scene/resources/material.h"
+#include "scene/resources/surface_tool.h"
 
 VextoriaInstance::VextoriaInstance() {
 	// Roblox Folder/Script have no CFrame, but spatial descendants must still
@@ -159,6 +161,9 @@ void Part::set_size(const Vector3 &p_size) {
 	size = p_size;
 	box_mesh->set_size(size);
 	box_shape->set_size(size);
+	if (builtin_wedge) {
+		rebuild_wedge_geometry();
+	}
 }
 
 void Part::set_color(const Color &p_color) {
@@ -180,8 +185,58 @@ void Part::set_can_collide(bool p_can_collide) {
 }
 
 void Part::reset_builtin_geometry() {
+	builtin_wedge = false;
 	visual->set_mesh(box_mesh);
 	collision->set_shape(box_shape);
+}
+
+void Part::rebuild_wedge_geometry() {
+	const Vector3 half = size * 0.5f;
+	const Vector3 vertices[6] = {
+		Vector3(half.x, half.y, half.z), Vector3(half.x, -half.y, half.z),
+		Vector3(half.x, -half.y, -half.z), Vector3(-half.x, half.y, half.z),
+		Vector3(-half.x, -half.y, half.z), Vector3(-half.x, -half.y, -half.z)
+	};
+	// The authored five faces are a sloped top, two triangles on each of the
+	// rectangular sides, two end triangles, and a rectangular bottom. Godot's
+	// front winding is opposite the outward cross-product used for lighting.
+	static constexpr int triangles[8][3] = {
+		{ 0, 3, 4 }, { 0, 4, 1 }, { 3, 0, 2 }, { 3, 2, 5 },
+		{ 0, 1, 2 }, { 3, 5, 4 }, { 5, 2, 1 }, { 5, 1, 4 }
+	};
+	Ref<SurfaceTool> surface;
+	surface.instantiate();
+	surface->begin(Mesh::PRIMITIVE_TRIANGLES);
+	for (const auto &triangle : triangles) {
+		const Vector3 &a = vertices[triangle[0]];
+		const Vector3 &b = vertices[triangle[1]];
+		const Vector3 &c = vertices[triangle[2]];
+		Vector3 normal = (b - a).cross(c - a).normalized();
+		surface->set_normal(normal);
+		surface->set_uv(Vector2(0, 0));
+		surface->add_vertex(a);
+		surface->set_uv(Vector2(1, 0));
+		surface->add_vertex(c);
+		surface->set_uv(Vector2(0, 1));
+		surface->add_vertex(b);
+	}
+	wedge_mesh = surface->commit();
+	Vector<Vector3> hull_points;
+	for (const Vector3 &vertex : vertices) {
+		hull_points.push_back(vertex);
+	}
+	wedge_shape.instantiate();
+	wedge_shape->set_points(hull_points);
+	visual->set_mesh(wedge_mesh);
+	collision->set_shape(wedge_shape);
+}
+
+void Part::set_builtin_wedge_geometry() {
+	if (builtin_wedge) {
+		return;
+	}
+	builtin_wedge = true;
+	rebuild_wedge_geometry();
 }
 
 void Part::_bind_methods() {
@@ -198,6 +253,7 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_can_collide"), &Part::get_can_collide);
 	ClassDB::bind_method(D_METHOD("set_can_collide", "can_collide"), &Part::set_can_collide);
 	ClassDB::bind_method(D_METHOD("reset_builtin_geometry"), &Part::reset_builtin_geometry);
+	ClassDB::bind_method(D_METHOD("set_builtin_wedge_geometry"), &Part::set_builtin_wedge_geometry);
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "Size"), "set_size", "get_size");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "Color"), "set_color", "get_color");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");

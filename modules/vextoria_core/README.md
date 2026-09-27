@@ -16,6 +16,12 @@ the authored `Size` instead of replacing it with a managed unit resource and
 scaling it a second time. `reset_builtin_geometry` restores that pair when a
 Part changes from an authored non-box shape back to Brick. Other shape variants
 still use the client resource path pending native geometry and collision ports.
+The Wedge path also owns a native eight-triangle mesh and six-point convex
+collision hull, rebuilt at the authored Size. Its local orientation follows
+the source-derived wedge geometry contract already used by the client and was
+compared with `ROBLOX-main/App/include/v8world/WedgeMesh.h` and
+`ROBLOX-main/App/v8world/WedgePoly.cpp`; no Roblox source text is copied.
+The remaining shape variants and material textures are still client-owned.
 
 `Model` is spatial (`Node3D`); `Folder` and `VextoriaScript` are non-spatial
 Godot `Node`s. This matches the recovered Roblox inheritance distinction

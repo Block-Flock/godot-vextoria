@@ -35,6 +35,18 @@ func _run() -> void:
 	part.call("reset_builtin_geometry")
 	assert(visual.mesh is BoxMesh and visual.mesh.size == Vector3(3, 2, 5), "Brick did not restore native visual size")
 	assert(collision.shape is BoxShape3D and collision.shape.size == Vector3(3, 2, 5), "Brick did not restore native collision size")
+	part.call("set_builtin_wedge_geometry")
+	assert(visual.mesh is ArrayMesh and visual.mesh.get_aabb().size.is_equal_approx(Vector3(3, 2, 5)), "native wedge mesh lost authored size")
+	var wedge_arrays: Array = visual.mesh.surface_get_arrays(0)
+	var wedge_vertices: PackedVector3Array = wedge_arrays[Mesh.ARRAY_VERTEX]
+	assert(wedge_vertices.size() == 24, "native wedge must retain eight authored triangles")
+	assert(wedge_vertices[0].is_equal_approx(Vector3(1.5, 1, 2.5)) and wedge_vertices[1].is_equal_approx(Vector3(-1.5, -1, 2.5)), "native wedge was mirrored or its slope reversed")
+	assert(collision.shape is ConvexPolygonShape3D and collision.shape.points.size() == 6, "native wedge collision must be a six-point convex hull")
+	part.set("Size", Vector3(4, 3, 6))
+	assert(visual.mesh.get_aabb().size.is_equal_approx(Vector3(4, 3, 6)), "native wedge resize did not update visual")
+	assert(collision.shape.points[0].is_equal_approx(Vector3(2, 1.5, 3)), "native wedge resize did not update collision")
+	part.call("reset_builtin_geometry")
+	part.set("Size", Vector3(3, 2, 5))
 
 	await physics_frame
 	await physics_frame
