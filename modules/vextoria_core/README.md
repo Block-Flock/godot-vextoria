@@ -23,6 +23,13 @@ the first spatial descendants' world frames, so moving a folder between
 models does not silently move its parts. This is implemented in engine/node
 and native class behavior, not a mirrored Creator Explorer.
 
+`VextoriaExplorerTree` is a native `Tree` whose item hierarchy follows a
+source Godot `Node` subtree. It admits gameplay nodes tagged
+`_vextoria_instance`, ignores internal implementation children and excluded
+subtrees, and maintains Node/TreeItem identity across name, order, and parent
+changes. The client still adapts Creator actions and display metadata in C#;
+this does not yet make the entire gameplay object API native.
+
 The hinge frame split follows the observable C0/C1 contract in
 `ROBLOX-main/App/v8datamodel/JointInstance.cpp` and
 `ROBLOX-main/App/include/v8world/RotateJoint.h`. Body A and body B retain
@@ -51,3 +58,5 @@ Smoke coverage:
 - `tests/native_hierarchy_smoke.gd`: Model/Folder/Script/Part ClassDB ancestry,
   real Godot parentage, transform/visibility pass-through, CFrame-preserving
   Folder reparent, ordinary-Node isolation, and PackedScene save/reopen.
+- `tests/native_explorer_smoke.gd`: native SceneTree-backed hierarchy, identity,
+  exclusion, rename, reparent, ordering, removal, and detached-root admission.

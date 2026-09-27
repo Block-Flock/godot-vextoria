@@ -41,7 +41,7 @@ class VextoriaExplorerTree : public Tree {
 	HashMap<TreeItem *, Node *> item_nodes;
 	bool order_dirty = false;
 
-	void _add_subtree(Node *p_node);
+	void _add_subtree(Node *p_node, bool p_recurse = true);
 	void _remove_item(TreeItem *p_item);
 	void _clear_items();
 	void _sync_order_for(Node *p_node, TreeItem *p_parent_item);
@@ -59,5 +59,6 @@ public:
 	void set_source_root(Node *p_root);
 	Node *get_source_root() const { return source_root; }
 	TreeItem *get_item_for_node(Node *p_node) const;
+	TreeItem *ensure_item_for_node(Node *p_node);
 	Node *get_node_for_item(TreeItem *p_item) const;
 };
