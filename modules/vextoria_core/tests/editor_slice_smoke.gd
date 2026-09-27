@@ -157,11 +157,15 @@ func _run_smoke() -> void:
 	var has_size := false
 	var has_color := false
 	var has_geometry := false
+	var has_geometry_mesh := false
+	var has_geometry_collision := false
 	for property in part.get_property_list():
 		has_size = has_size or property.name == "Size"
 		has_color = has_color or property.name == "Color"
 		has_geometry = has_geometry or property.name == "Geometry"
-	if not has_size or not has_color or not has_geometry:
+		has_geometry_mesh = has_geometry_mesh or property.name == "GeometryMesh"
+		has_geometry_collision = has_geometry_collision or property.name == "GeometryCollision"
+	if not has_size or not has_color or not has_geometry or not has_geometry_mesh or not has_geometry_collision:
 		_fail("ClassDB did not expose Part.Size, Part.Color and Part.Geometry to the Inspector")
 		return
 

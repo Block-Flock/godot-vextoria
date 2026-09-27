@@ -161,7 +161,10 @@ void Part::set_size(const Vector3 &p_size) {
 	size = p_size;
 	box_mesh->set_size(size);
 	box_shape->set_size(size);
-	if (builtin_wedge) {
+	if (external_geometry) {
+		visual->set_scale(size);
+		collision->set_scale(size);
+	} else if (builtin_wedge) {
 		rebuild_wedge_geometry();
 	}
 }
@@ -185,7 +188,10 @@ void Part::set_can_collide(bool p_can_collide) {
 }
 
 void Part::reset_builtin_geometry() {
+	external_geometry = false;
 	builtin_wedge = false;
+	visual->set_scale(Vector3(1, 1, 1));
+	collision->set_scale(Vector3(1, 1, 1));
 	visual->set_mesh(box_mesh);
 	collision->set_shape(box_shape);
 }
@@ -232,6 +238,9 @@ void Part::rebuild_wedge_geometry() {
 }
 
 void Part::set_builtin_wedge_geometry() {
+	external_geometry = false;
+	visual->set_scale(Vector3(1, 1, 1));
+	collision->set_scale(Vector3(1, 1, 1));
 	if (builtin_wedge) {
 		visual->set_mesh(wedge_mesh);
 		collision->set_shape(wedge_shape);
@@ -242,12 +251,45 @@ void Part::set_builtin_wedge_geometry() {
 }
 
 void Part::set_builtin_geometry_kind(int p_kind) {
-	ERR_FAIL_COND_MSG(p_kind < 0 || p_kind > 1, "Part.Geometry supports Brick and Wedge; other shapes are not native yet.");
-	if (p_kind == 1) {
+	ERR_FAIL_COND_MSG(p_kind < 0 || p_kind > 2, "Part.Geometry must be Brick, Wedge or Resource.");
+	if (p_kind == 2) {
+		builtin_wedge = false;
+		external_geometry = true;
+		apply_external_geometry();
+	} else if (p_kind == 1) {
 		set_builtin_wedge_geometry();
 	} else {
 		reset_builtin_geometry();
 	}
+}
+
+void Part::apply_external_geometry() {
+	visual->set_mesh(geometry_mesh);
+	collision->set_shape(geometry_collision);
+	visual->set_scale(size);
+	collision->set_scale(size);
+}
+
+void Part::set_geometry_mesh(const Ref<Mesh> &p_mesh) {
+	geometry_mesh = p_mesh;
+	if (external_geometry) {
+		visual->set_mesh(geometry_mesh);
+	}
+}
+
+Ref<Mesh> Part::get_geometry_mesh() const {
+	return geometry_mesh;
+}
+
+void Part::set_geometry_collision(const Ref<Shape3D> &p_shape) {
+	geometry_collision = p_shape;
+	if (external_geometry) {
+		collision->set_shape(geometry_collision);
+	}
+}
+
+Ref<Shape3D> Part::get_geometry_collision() const {
+	return geometry_collision;
 }
 
 void Part::_bind_methods() {
@@ -267,8 +309,14 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_builtin_wedge_geometry"), &Part::set_builtin_wedge_geometry);
 	ClassDB::bind_method(D_METHOD("get_builtin_geometry_kind"), &Part::get_builtin_geometry_kind);
 	ClassDB::bind_method(D_METHOD("set_builtin_geometry_kind", "kind"), &Part::set_builtin_geometry_kind);
+	ClassDB::bind_method(D_METHOD("get_geometry_mesh"), &Part::get_geometry_mesh);
+	ClassDB::bind_method(D_METHOD("set_geometry_mesh", "mesh"), &Part::set_geometry_mesh);
+	ClassDB::bind_method(D_METHOD("get_geometry_collision"), &Part::get_geometry_collision);
+	ClassDB::bind_method(D_METHOD("set_geometry_collision", "shape"), &Part::set_geometry_collision);
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "Size"), "set_size", "get_size");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "Geometry", PROPERTY_HINT_ENUM, "Brick,Wedge"), "set_builtin_geometry_kind", "get_builtin_geometry_kind");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "Geometry", PROPERTY_HINT_ENUM, "Brick,Wedge,Resource"), "set_builtin_geometry_kind", "get_builtin_geometry_kind");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "GeometryMesh", PROPERTY_HINT_RESOURCE_TYPE, "Mesh"), "set_geometry_mesh", "get_geometry_mesh");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "GeometryCollision", PROPERTY_HINT_RESOURCE_TYPE, "Shape3D"), "set_geometry_collision", "get_geometry_collision");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "Color"), "set_color", "get_color");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");

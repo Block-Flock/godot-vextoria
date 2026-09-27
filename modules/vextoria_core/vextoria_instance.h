@@ -41,6 +41,8 @@ class ConvexPolygonShape3D;
 class CollisionShape3D;
 class MeshInstance3D;
 class ArrayMesh;
+class Mesh;
+class Shape3D;
 class StandardMaterial3D;
 
 // Non-spatial Roblox Instances (folders and scripts) belong in Godot's Node
@@ -79,8 +81,12 @@ class Part : public RigidBody3D {
 	Ref<ArrayMesh> wedge_mesh;
 	Ref<ConvexPolygonShape3D> wedge_shape;
 	Ref<StandardMaterial3D> material;
+	Ref<Mesh> geometry_mesh;
+	Ref<Shape3D> geometry_collision;
 	bool builtin_wedge = false;
+	bool external_geometry = false;
 	void rebuild_wedge_geometry();
+	void apply_external_geometry();
 
 protected:
 	static void _bind_methods();
@@ -103,8 +109,12 @@ public:
 	// an authored non-box shape. Size remains authoritative on this native node.
 	void reset_builtin_geometry();
 	void set_builtin_wedge_geometry();
-	int get_builtin_geometry_kind() const { return builtin_wedge ? 1 : 0; }
+	int get_builtin_geometry_kind() const { return external_geometry ? 2 : (builtin_wedge ? 1 : 0); }
 	void set_builtin_geometry_kind(int p_kind);
+	Ref<Mesh> get_geometry_mesh() const;
+	void set_geometry_mesh(const Ref<Mesh> &p_mesh);
+	Ref<Shape3D> get_geometry_collision() const;
+	void set_geometry_collision(const Ref<Shape3D> &p_shape);
 };
 
 // Roblox Model is a PVInstance: unlike Folder, it has a spatial frame.
