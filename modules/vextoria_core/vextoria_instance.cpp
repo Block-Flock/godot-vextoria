@@ -233,10 +233,21 @@ void Part::rebuild_wedge_geometry() {
 
 void Part::set_builtin_wedge_geometry() {
 	if (builtin_wedge) {
+		visual->set_mesh(wedge_mesh);
+		collision->set_shape(wedge_shape);
 		return;
 	}
 	builtin_wedge = true;
 	rebuild_wedge_geometry();
+}
+
+void Part::set_builtin_geometry_kind(int p_kind) {
+	ERR_FAIL_COND_MSG(p_kind < 0 || p_kind > 1, "Part.Geometry supports Brick and Wedge; other shapes are not native yet.");
+	if (p_kind == 1) {
+		set_builtin_wedge_geometry();
+	} else {
+		reset_builtin_geometry();
+	}
 }
 
 void Part::_bind_methods() {
@@ -254,7 +265,10 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_can_collide", "can_collide"), &Part::set_can_collide);
 	ClassDB::bind_method(D_METHOD("reset_builtin_geometry"), &Part::reset_builtin_geometry);
 	ClassDB::bind_method(D_METHOD("set_builtin_wedge_geometry"), &Part::set_builtin_wedge_geometry);
+	ClassDB::bind_method(D_METHOD("get_builtin_geometry_kind"), &Part::get_builtin_geometry_kind);
+	ClassDB::bind_method(D_METHOD("set_builtin_geometry_kind", "kind"), &Part::set_builtin_geometry_kind);
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "Size"), "set_size", "get_size");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "Geometry", PROPERTY_HINT_ENUM, "Brick,Wedge"), "set_builtin_geometry_kind", "get_builtin_geometry_kind");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "Color"), "set_color", "get_color");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");

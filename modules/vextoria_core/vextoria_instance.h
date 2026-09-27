@@ -103,6 +103,8 @@ public:
 	// an authored non-box shape. Size remains authoritative on this native node.
 	void reset_builtin_geometry();
 	void set_builtin_wedge_geometry();
+	int get_builtin_geometry_kind() const { return builtin_wedge ? 1 : 0; }
+	void set_builtin_geometry_kind(int p_kind);
 };
 
 // Roblox Model is a PVInstance: unlike Folder, it has a spatial frame.

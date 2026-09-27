@@ -22,6 +22,12 @@ the source-derived wedge geometry contract already used by the client and was
 compared with `ROBLOX-main/App/include/v8world/WedgeMesh.h` and
 `ROBLOX-main/App/v8world/WedgePoly.cpp`; no Roblox source text is copied.
 The remaining shape variants and material textures are still client-owned.
+`Geometry` is native ClassDB/Inspector state for Brick (0) and Wedge (1), so
+Godot duplication, scene serialization and editor undo preserve the selected
+geometry without a gameplay wrapper. This is not the full legacy Shape enum.
+The gameplay adapter explicitly returns to Brick ownership before installing
+an unmigrated shape, preventing a later Size edit from rebuilding a stale
+Wedge over that external resource.
 
 `Model` is spatial (`Node3D`); `Folder` and `VextoriaScript` are non-spatial
 Godot `Node`s. This matches the recovered Roblox inheritance distinction

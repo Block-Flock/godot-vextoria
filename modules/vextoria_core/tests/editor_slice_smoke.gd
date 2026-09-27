@@ -156,11 +156,13 @@ func _run_smoke() -> void:
 
 	var has_size := false
 	var has_color := false
+	var has_geometry := false
 	for property in part.get_property_list():
 		has_size = has_size or property.name == "Size"
 		has_color = has_color or property.name == "Color"
-	if not has_size or not has_color:
-		_fail("ClassDB did not expose Part.Size and Part.Color to the Inspector")
+		has_geometry = has_geometry or property.name == "Geometry"
+	if not has_size or not has_color or not has_geometry:
+		_fail("ClassDB did not expose Part.Size, Part.Color and Part.Geometry to the Inspector")
 		return
 
 	var editor_undo_redo: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
@@ -176,16 +178,18 @@ func _run_smoke() -> void:
 	editor_undo_redo.create_action("Edit native Part", UndoRedo.MERGE_DISABLE, part)
 	editor_undo_redo.add_do_property(part, "Size", Vector3(5, 2, 3))
 	editor_undo_redo.add_undo_property(part, "Size", Vector3(4, 1, 2))
+	editor_undo_redo.add_do_property(part, "Geometry", 1)
+	editor_undo_redo.add_undo_property(part, "Geometry", 0)
 	editor_undo_redo.add_do_property(part, "position", Vector3(8, 4, 2))
 	editor_undo_redo.add_undo_property(part, "position", Vector3.ZERO)
 	editor_undo_redo.commit_action()
-	if part.get("Size") != Vector3(5, 2, 3) or part.position != Vector3(8, 4, 2):
+	if part.get("Size") != Vector3(5, 2, 3) or part.position != Vector3(8, 4, 2) or part.get("Geometry") != 1:
 		_fail("native Part property/transform edit was not applied")
 		return
-	if not undo_stack.undo() or part.get("Size") != Vector3(4, 1, 2) or part.position != Vector3.ZERO:
+	if not undo_stack.undo() or part.get("Size") != Vector3(4, 1, 2) or part.position != Vector3.ZERO or part.get("Geometry") != 0:
 		_fail("native Part property/transform undo failed")
 		return
-	if not undo_stack.redo() or part.get("Size") != Vector3(5, 2, 3) or part.position != Vector3(8, 4, 2):
+	if not undo_stack.redo() or part.get("Size") != Vector3(5, 2, 3) or part.position != Vector3(8, 4, 2) or part.get("Geometry") != 1:
 		_fail("native Part property/transform redo failed")
 		return
 
@@ -205,6 +209,9 @@ func _run_smoke() -> void:
 	var reopened_part := reopened_root.get_node_or_null(NodePath(String(part.name)))
 	if reopened_part == null or reopened_part.get_class() != "Part" or reopened_part.get("Size") != Vector3(5, 2, 3) or reopened_part.position != Vector3(8, 4, 2):
 		_fail("save/reopen lost native Part identity, Size, or transform")
+		return
+	if reopened_part.get("Geometry") != 1 or reopened_part.get_node("Visual").mesh is not ArrayMesh or reopened_part.get_node("Collision").shape is not ConvexPolygonShape3D:
+		_fail("save/reopen lost native Wedge geometry")
 		return
 	reopened_root.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
