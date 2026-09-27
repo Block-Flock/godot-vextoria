@@ -90,7 +90,14 @@ TreeItem *VextoriaExplorerTree::get_item_for_node(Node *p_node) const {
 }
 
 TreeItem *VextoriaExplorerTree::ensure_item_for_node(Node *p_node) {
+	if (!p_node || !source_root || (p_node != source_root && !source_root->is_ancestor_of(p_node))) {
+		return nullptr;
+	}
 	if (p_node && !node_items.has(p_node)) {
+		Node *parent = p_node->get_parent();
+		if (parent && !node_items.has(parent)) {
+			ensure_item_for_node(parent);
+		}
 		_add_subtree(p_node, false);
 	}
 	return get_item_for_node(p_node);

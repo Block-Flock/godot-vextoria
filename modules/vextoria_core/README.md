@@ -29,6 +29,9 @@ source Godot `Node` subtree. It admits gameplay nodes tagged
 subtrees, and maintains Node/TreeItem identity across name, order, and parent
 changes. The client still adapts Creator actions and display metadata in C#;
 this does not yet make the entire gameplay object API native.
+When a detached Creator world admits a descendant before its parent has been
+explicitly admitted, `ensure_item_for_node` creates marked ancestors first so
+the item does not attach to the wrong branch.
 
 The hinge frame split follows the observable C0/C1 contract in
 `ROBLOX-main/App/v8datamodel/JointInstance.cpp` and
@@ -59,4 +62,5 @@ Smoke coverage:
   real Godot parentage, transform/visibility pass-through, CFrame-preserving
   Folder reparent, ordinary-Node isolation, and PackedScene save/reopen.
 - `tests/native_explorer_smoke.gd`: native SceneTree-backed hierarchy, identity,
-  exclusion, rename, reparent, ordering, removal, and detached-root admission.
+  exclusion, rename, reparent, ordering, removal, detached-root admission, and
+  out-of-order ancestor admission.
