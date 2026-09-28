@@ -95,6 +95,7 @@ class Part : public RigidBody3D {
 	bool external_geometry = false;
 	void rebuild_wedge_geometry();
 	void apply_external_geometry();
+	bool try_resolve_shape_assets(int p_kind);
 
 protected:
 	static void _bind_methods();
