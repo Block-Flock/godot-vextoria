@@ -51,7 +51,9 @@ directly to `res://resources/materials/parts/<Material>.tres`, including the
 transparent part shader when alpha crosses the existing 0.975 opacity
 threshold. Native Parts register in an internal non-persistent group so the
 existing normal-map setting can update native standalone materials while the
-managed MultiMesh cache remains in service. Complete legacy rendering semantics
+managed MultiMesh cache remains in service. The current setting is also stored
+under `vextoria/rendering/normal_maps_enabled` so Parts created later inherit
+the active render policy during native construction. Complete legacy rendering semantics
 and touch/assembly mirrors remain outside this slice.
 
 Part also exposes native authored `Shape` and `Material` enum state and emits
