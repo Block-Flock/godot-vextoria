@@ -200,7 +200,12 @@ void Part::set_shape_kind(int p_kind) {
 	} else {
 		builtin_wedge = false;
 		external_geometry = true;
-		apply_external_geometry();
+		// Semantic Shape can arrive before the managed compatibility asset
+		// resolver supplies its Mesh/Shape3D pair. Keep the prior native geometry
+		// intact until at least one authored resource is available.
+		if (geometry_mesh.is_valid() || geometry_collision.is_valid()) {
+			apply_external_geometry();
+		}
 	}
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Shape"));
 }
