@@ -203,7 +203,7 @@ void Part::set_shape_kind(int p_kind) {
 		// Semantic Shape can arrive before the managed compatibility asset
 		// resolver supplies its Mesh/Shape3D pair. Keep the prior native geometry
 		// intact until at least one authored resource is available.
-		if (geometry_mesh.is_valid() || geometry_collision.is_valid()) {
+		if (geometry_mesh.is_valid() && geometry_collision.is_valid()) {
 			apply_external_geometry();
 		}
 	}
