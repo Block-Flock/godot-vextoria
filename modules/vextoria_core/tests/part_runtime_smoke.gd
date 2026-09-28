@@ -10,6 +10,7 @@ func _run() -> void:
 	root.add_child(scene_root)
 	var part: RigidBody3D = ClassDB.instantiate("Part")
 	part.name = "TestPart"
+	assert(part.is_in_group("_vextoria_native_parts"), "native Part did not register for engine rendering settings")
 	var authored_changes: Array[StringName] = []
 	part.connect("vextoria_property_changed", func(property: StringName) -> void: authored_changes.append(property))
 	scene_root.add_child(part)
