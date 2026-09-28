@@ -175,11 +175,43 @@ void Part::set_size(const Vector3 &p_size) {
 	} else if (builtin_wedge) {
 		rebuild_wedge_geometry();
 	}
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Size"));
 }
 
 void Part::set_color(const Color &p_color) {
+	if (color == p_color) {
+		return;
+	}
 	color = p_color;
 	update_appearance_color();
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Color"));
+}
+
+void Part::set_shape_kind(int p_kind) {
+	ERR_FAIL_COND_MSG(p_kind < 0 || p_kind > 15, "Part.Shape is outside the supported authored shape range.");
+	if (shape_kind == p_kind) {
+		return;
+	}
+	shape_kind = p_kind;
+	if (shape_kind == 0) {
+		reset_builtin_geometry();
+	} else if (shape_kind == 4) {
+		set_builtin_wedge_geometry();
+	} else {
+		builtin_wedge = false;
+		external_geometry = true;
+		apply_external_geometry();
+	}
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Shape"));
+}
+
+void Part::set_material_kind(int p_kind) {
+	ERR_FAIL_COND_MSG(p_kind < 0 || p_kind > 20, "Part.Material is outside the supported authored material range.");
+	if (material_kind == p_kind) {
+		return;
+	}
+	material_kind = p_kind;
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Material"));
 }
 
 void Part::update_appearance_color() {
@@ -207,6 +239,7 @@ void Part::set_appearance_material(const Ref<Material> &p_material) {
 		appearance_material->connect_changed(callable_mp(this, &Part::appearance_material_changed));
 	}
 	appearance_material_changed();
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("AppearanceMaterial"));
 }
 
 void Part::appearance_material_changed() {
@@ -237,16 +270,24 @@ void Part::appearance_material_changed() {
 }
 
 void Part::set_anchored(bool p_anchored) {
+	if (anchored == p_anchored) {
+		return;
+	}
 	anchored = p_anchored;
 	set_freeze_enabled(anchored);
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Anchored"));
 }
 
 void Part::set_can_collide(bool p_can_collide) {
+	if (can_collide == p_can_collide) {
+		return;
+	}
 	can_collide = p_can_collide;
 	// Keep the shape installed so toggling CanCollide does not rebuild the body
 	// or invalidate joints. A zero layer alone is insufficient: the body's
 	// mask could still request contacts with another object's layer.
 	collision->set_disabled(!can_collide);
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("CanCollide"));
 }
 
 void Part::reset_builtin_geometry() {
@@ -320,9 +361,18 @@ void Part::set_builtin_geometry_kind(int p_kind) {
 		apply_external_geometry();
 	} else if (p_kind == 1) {
 		set_builtin_wedge_geometry();
+		if (shape_kind != 4) {
+			shape_kind = 4;
+			emit_signal(SNAME("vextoria_property_changed"), SNAME("Shape"));
+		}
 	} else {
 		reset_builtin_geometry();
+		if (shape_kind != 0) {
+			shape_kind = 0;
+			emit_signal(SNAME("vextoria_property_changed"), SNAME("Shape"));
+		}
 	}
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Geometry"));
 }
 
 void Part::apply_external_geometry() {
@@ -333,10 +383,14 @@ void Part::apply_external_geometry() {
 }
 
 void Part::set_geometry_mesh(const Ref<Mesh> &p_mesh) {
+	if (geometry_mesh == p_mesh) {
+		return;
+	}
 	geometry_mesh = p_mesh;
 	if (external_geometry) {
 		visual->set_mesh(geometry_mesh);
 	}
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("GeometryMesh"));
 }
 
 Ref<Mesh> Part::get_geometry_mesh() const {
@@ -344,10 +398,14 @@ Ref<Mesh> Part::get_geometry_mesh() const {
 }
 
 void Part::set_geometry_collision(const Ref<Shape3D> &p_shape) {
+	if (geometry_collision == p_shape) {
+		return;
+	}
 	geometry_collision = p_shape;
 	if (external_geometry) {
 		collision->set_shape(geometry_collision);
 	}
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("GeometryCollision"));
 }
 
 Ref<Shape3D> Part::get_geometry_collision() const {
@@ -359,6 +417,10 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_size", "size"), &Part::set_size);
 	ClassDB::bind_method(D_METHOD("get_color"), &Part::get_color);
 	ClassDB::bind_method(D_METHOD("set_color", "color"), &Part::set_color);
+	ClassDB::bind_method(D_METHOD("get_shape_kind"), &Part::get_shape_kind);
+	ClassDB::bind_method(D_METHOD("set_shape_kind", "shape"), &Part::set_shape_kind);
+	ClassDB::bind_method(D_METHOD("get_material_kind"), &Part::get_material_kind);
+	ClassDB::bind_method(D_METHOD("set_material_kind", "material"), &Part::set_material_kind);
 	ClassDB::bind_method(D_METHOD("is_archivable"), &Part::is_archivable);
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &Part::set_archivable);
 	ClassDB::bind_method(D_METHOD("is_locked"), &Part::is_locked);
@@ -377,7 +439,10 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_geometry_collision", "shape"), &Part::set_geometry_collision);
 	ClassDB::bind_method(D_METHOD("get_appearance_material"), &Part::get_appearance_material);
 	ClassDB::bind_method(D_METHOD("set_appearance_material", "material"), &Part::set_appearance_material);
+	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "Size"), "set_size", "get_size");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "Shape", PROPERTY_HINT_ENUM, "Brick,Sphere,Cylinder,Cone,Wedge,Corner,Bevel,Concave,Truss,Frame,Octant,Torus,BeveledCorner,ConcaveCorner,TriangleCorner,TriangleConcaveCorner"), "set_shape_kind", "get_shape_kind");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "Material", PROPERTY_HINT_ENUM, "SmoothPlastic,Brick,Concrete,Dirt,Fabric,Grass,Ice,Marble,Metal,MetalGrid,MetalPlate,Neon,Planks,Plastic,Plywood,RustyIron,Sand,Sandstone,Snow,Stone,Wood"), "set_material_kind", "get_material_kind");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "Geometry", PROPERTY_HINT_ENUM, "Brick,Wedge,Resource"), "set_builtin_geometry_kind", "get_builtin_geometry_kind");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "GeometryMesh", PROPERTY_HINT_RESOURCE_TYPE, "Mesh"), "set_geometry_mesh", "get_geometry_mesh");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "GeometryCollision", PROPERTY_HINT_RESOURCE_TYPE, "Shape3D"), "set_geometry_collision", "get_geometry_collision");
