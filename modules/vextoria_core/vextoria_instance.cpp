@@ -246,6 +246,38 @@ static const char *vextoria_part_shape_names[] = {
 };
 
 namespace {
+Vector<Vector3> wedge_vertices(const Vector3 &p_size) {
+	const Vector3 half = p_size * 0.5f;
+	return { Vector3(half.x, half.y, half.z), Vector3(half.x, -half.y, half.z),
+		Vector3(half.x, -half.y, -half.z), Vector3(-half.x, half.y, half.z),
+		Vector3(-half.x, -half.y, half.z), Vector3(-half.x, -half.y, -half.z) };
+}
+
+Ref<ArrayMesh> make_wedge_mesh(const Vector3 &p_size) {
+	const Vector<Vector3> vertices = wedge_vertices(p_size);
+	static constexpr int triangles[8][3] = {
+		{ 0, 3, 4 }, { 0, 4, 1 }, { 3, 0, 2 }, { 3, 2, 5 },
+		{ 0, 1, 2 }, { 3, 5, 4 }, { 5, 2, 1 }, { 5, 1, 4 }
+	};
+	Ref<SurfaceTool> surface;
+	surface.instantiate();
+	surface->begin(Mesh::PRIMITIVE_TRIANGLES);
+	for (const auto &triangle : triangles) {
+		const Vector3 &a = vertices[triangle[0]];
+		const Vector3 &b = vertices[triangle[1]];
+		const Vector3 &c = vertices[triangle[2]];
+		surface->set_normal((b - a).cross(c - a).normalized());
+		// Clockwise front faces, with independently outward lighting normals.
+		surface->set_uv(Vector2(0, 0));
+		surface->add_vertex(a);
+		surface->set_uv(Vector2(1, 0));
+		surface->add_vertex(c);
+		surface->set_uv(Vector2(0, 1));
+		surface->add_vertex(b);
+	}
+	return surface->commit();
+}
+
 struct PartShapeCacheEntry {
 	Ref<Mesh> mesh;
 	Ref<Shape3D> collision;
@@ -256,6 +288,7 @@ struct PartShapeCacheEntry {
 struct PartShapeCache {
 	Mutex mutex;
 	PartShapeCacheEntry entries[16];
+	Ref<ArrayMesh> unit_wedge;
 };
 
 // Bounded by the authored shape registry, not by the number of world Parts.
@@ -424,6 +457,19 @@ static const char *vextoria_part_material_names[] = {
 };
 
 Ref<Mesh> Part::get_unit_render_mesh() {
+	if (shape_kind == 4) {
+		// A legacy PrismMesh slopes across X; Roblox's wedge ridge is local +Z.
+		// Batch the exact same native topology as standalone/collision geometry,
+		// rather than changing the authored CFrame to fit a different primitive.
+		if (!part_shape_cache) {
+			part_shape_cache = memnew(PartShapeCache);
+		}
+		MutexLock lock(part_shape_cache->mutex);
+		if (part_shape_cache->unit_wedge.is_null()) {
+			part_shape_cache->unit_wedge = make_wedge_mesh(Vector3(1, 1, 1));
+		}
+		return part_shape_cache->unit_wedge;
+	}
 	const String path = "res://resources/shapes/meshes/" + String(vextoria_part_shape_names[shape_kind]) + ".tres";
 	if (ResourceLoader::exists(path)) {
 		return ResourceLoader::load(path, "Mesh", ResourceLoader::CACHE_MODE_REUSE);
@@ -656,42 +702,9 @@ void Part::reset_builtin_geometry() {
 }
 
 void Part::rebuild_wedge_geometry() {
-	const Vector3 half = size * 0.5f;
-	const Vector3 vertices[6] = {
-		Vector3(half.x, half.y, half.z), Vector3(half.x, -half.y, half.z),
-		Vector3(half.x, -half.y, -half.z), Vector3(-half.x, half.y, half.z),
-		Vector3(-half.x, -half.y, half.z), Vector3(-half.x, -half.y, -half.z)
-	};
-	// The authored five faces are a sloped top, two triangles on each of the
-	// rectangular sides, two end triangles, and a rectangular bottom. Godot's
-	// front winding is opposite the outward cross-product used for lighting.
-	static constexpr int triangles[8][3] = {
-		{ 0, 3, 4 }, { 0, 4, 1 }, { 3, 0, 2 }, { 3, 2, 5 },
-		{ 0, 1, 2 }, { 3, 5, 4 }, { 5, 2, 1 }, { 5, 1, 4 }
-	};
-	Ref<SurfaceTool> surface;
-	surface.instantiate();
-	surface->begin(Mesh::PRIMITIVE_TRIANGLES);
-	for (const auto &triangle : triangles) {
-		const Vector3 &a = vertices[triangle[0]];
-		const Vector3 &b = vertices[triangle[1]];
-		const Vector3 &c = vertices[triangle[2]];
-		Vector3 normal = (b - a).cross(c - a).normalized();
-		surface->set_normal(normal);
-		surface->set_uv(Vector2(0, 0));
-		surface->add_vertex(a);
-		surface->set_uv(Vector2(1, 0));
-		surface->add_vertex(c);
-		surface->set_uv(Vector2(0, 1));
-		surface->add_vertex(b);
-	}
-	wedge_mesh = surface->commit();
-	Vector<Vector3> hull_points;
-	for (const Vector3 &vertex : vertices) {
-		hull_points.push_back(vertex);
-	}
+	wedge_mesh = make_wedge_mesh(size);
 	wedge_shape.instantiate();
-	wedge_shape->set_points(hull_points);
+	wedge_shape->set_points(wedge_vertices(size));
 	visual->set_mesh(wedge_mesh);
 	collision->set_shape(wedge_shape);
 	refresh_editor_pick_geometry();

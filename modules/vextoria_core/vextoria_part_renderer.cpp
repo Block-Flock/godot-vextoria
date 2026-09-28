@@ -308,6 +308,28 @@ AABB VextoriaPartRenderer::get_part_render_bounds(Part *p_part) const {
 	return batches[admission->batch].mesh->get_custom_aabb();
 }
 
+Dictionary VextoriaPartRenderer::get_part_render_state(Part *p_part) const {
+	ERR_FAIL_NULL_V(p_part, Dictionary());
+	Dictionary result;
+	const Admission *admission = admitted.getptr(p_part->get_instance_id());
+	result["admitted"] = admission != nullptr;
+	if (!admission) {
+		return result;
+	}
+	result["allowed"] = admission->allowed;
+	result["primitive_visible"] = admission->primitive_visible;
+	result["state_published"] = admission->state_published;
+	result["eligible"] = eligible(p_part, *admission);
+	result["slot"] = admission->slot;
+	result["dirty"] = dirty.has(p_part->get_instance_id());
+	result["external_geometry"] = p_part->external_geometry;
+	result["registry_material"] = p_part->material_registry_owned;
+	if (admission->slot >= 0) {
+		result["mesh"] = batches[admission->batch].mesh->get_mesh();
+	}
+	return result;
+}
+
 void VextoriaPartRenderer::_notification(int p_what) {
 	if (p_what == NOTIFICATION_EXIT_TREE) {
 		clear_parts();
@@ -342,6 +364,7 @@ void VextoriaPartRenderer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_pending_count"), &VextoriaPartRenderer::get_pending_count);
 	ClassDB::bind_method(D_METHOD("get_part_render_transform", "part"), &VextoriaPartRenderer::get_part_render_transform);
 	ClassDB::bind_method(D_METHOD("get_part_render_bounds", "part"), &VextoriaPartRenderer::get_part_render_bounds);
+	ClassDB::bind_method(D_METHOD("get_part_render_state", "part"), &VextoriaPartRenderer::get_part_render_state);
 	ClassDB::bind_method(D_METHOD("set_update_limit", "limit"), &VextoriaPartRenderer::set_update_limit);
 	ClassDB::bind_method(D_METHOD("get_update_limit"), &VextoriaPartRenderer::get_update_limit);
 }

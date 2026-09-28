@@ -67,6 +67,7 @@ public:
 	int get_pending_count() const { return dirty.size(); }
 	Transform3D get_part_render_transform(Part *p_part) const;
 	AABB get_part_render_bounds(Part *p_part) const;
+	Dictionary get_part_render_state(Part *p_part) const;
 	void set_update_limit(int p_limit);
 	int get_update_limit() const { return update_limit; }
 	VextoriaPartRenderer();
