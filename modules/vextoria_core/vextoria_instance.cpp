@@ -30,6 +30,7 @@
 
 #include "vextoria_instance.h"
 
+#include "core/config/project_settings.h"
 #include "core/io/resource_loader.h"
 #include "core/object/class_db.h"
 #include "core/object/callable_mp.h"
@@ -148,6 +149,8 @@ Part::Part() {
 	// Non-persistent internal group used by runtime rendering settings to reach
 	// native Parts without maintaining a second managed ownership registry.
 	add_to_group(SNAME("_vextoria_native_parts"));
+	normal_maps_enabled = ProjectSettings::get_singleton()->get_setting(
+			"vextoria/rendering/normal_maps_enabled", true);
 	try_resolve_material_asset(material_kind);
 }
 
