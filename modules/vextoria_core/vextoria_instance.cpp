@@ -144,6 +144,11 @@ Part::Part() {
 	collision->set_name("Collision");
 	collision->set_shape(box_shape);
 	add_child(collision, false, INTERNAL_MODE_BACK);
+
+	// Non-persistent internal group used by runtime rendering settings to reach
+	// native Parts without maintaining a second managed ownership registry.
+	add_to_group(SNAME("_vextoria_native_parts"));
+	try_resolve_material_asset(material_kind);
 }
 
 bool Part::is_locked() const {
@@ -185,8 +190,14 @@ void Part::set_color(const Color &p_color) {
 	if (color == p_color) {
 		return;
 	}
+	const bool old_opaque = material_registry_opaque;
 	color = p_color;
-	update_appearance_color();
+	const bool new_opaque = color.a >= 0.975f;
+	if (material_registry_owned && old_opaque != new_opaque) {
+		try_resolve_material_asset(material_kind);
+	} else {
+		update_appearance_color();
+	}
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Color"));
 }
 
@@ -257,13 +268,79 @@ void Part::set_shape_kind(int p_kind) {
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Shape"));
 }
 
+static const char *vextoria_part_material_names[] = {
+	"SmoothPlastic", "Brick", "Concrete", "Dirt", "Fabric", "Grass", "Ice", "Marble",
+	"Metal", "MetalGrid", "MetalPlate", "Neon", "Planks", "Plastic", "Plywood",
+	"RustyIron", "Sand", "Sandstone", "Snow", "Stone", "Wood"
+};
+
+bool Part::try_resolve_material_asset(int p_kind) {
+	if (p_kind < 0 || p_kind >= 21) {
+		return false;
+	}
+
+	const String material_name = vextoria_part_material_names[p_kind];
+	const String material_path = "res://resources/materials/parts/" + material_name + ".tres";
+	if (!ResourceLoader::exists(material_path, "Material")) {
+		return false;
+	}
+
+	Ref<Material> resolved_material = ResourceLoader::load(material_path, "Material", ResourceLoader::CACHE_MODE_IGNORE_DEEP);
+	if (resolved_material.is_null()) {
+		return false;
+	}
+
+	const bool opaque = color.a >= 0.975f;
+	Ref<ShaderMaterial> shader_material = resolved_material;
+	if (shader_material.is_valid()) {
+		if (!opaque) {
+			Ref<Shader> source_shader = shader_material->get_shader();
+			if (source_shader.is_valid() && source_shader->get_path().ends_with("part.gdshader")) {
+				Ref<Shader> transparent_shader = ResourceLoader::load(
+						"res://resources/shaders/part/part_transparent.gdshader",
+						"Shader", ResourceLoader::CACHE_MODE_IGNORE_DEEP);
+				if (transparent_shader.is_valid()) {
+					shader_material->set_shader(transparent_shader);
+				}
+			}
+		}
+		shader_material->set_shader_parameter(SNAME("use_normal_texture"), normal_maps_enabled);
+	}
+
+	set_appearance_material(resolved_material);
+	material_registry_owned = true;
+	material_registry_opaque = opaque;
+	return true;
+}
+
 void Part::set_material_kind(int p_kind) {
 	ERR_FAIL_COND_MSG(p_kind < 0 || p_kind > 20, "Part.Material is outside the supported authored material range.");
 	if (material_kind == p_kind) {
+		// A default-valued Material setter can still be the first opportunity to
+		// resolve the client asset pack after an isolated/native construction.
+		if (!material_registry_owned) {
+			try_resolve_material_asset(p_kind);
+		}
 		return;
 	}
 	material_kind = p_kind;
+	try_resolve_material_asset(material_kind);
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Material"));
+}
+
+void Part::set_normal_maps_enabled(bool p_enabled) {
+	if (normal_maps_enabled == p_enabled) {
+		return;
+	}
+	normal_maps_enabled = p_enabled;
+	if (!material_registry_owned) {
+		return;
+	}
+	Ref<ShaderMaterial> shader_material = appearance_material;
+	if (shader_material.is_valid()) {
+		shader_material->set_shader_parameter(SNAME("use_normal_texture"), normal_maps_enabled);
+		appearance_material_changed();
+	}
 }
 
 void Part::update_appearance_color() {
@@ -473,6 +550,7 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_shape_kind", "shape"), &Part::set_shape_kind);
 	ClassDB::bind_method(D_METHOD("get_material_kind"), &Part::get_material_kind);
 	ClassDB::bind_method(D_METHOD("set_material_kind", "material"), &Part::set_material_kind);
+	ClassDB::bind_method(D_METHOD("set_normal_maps_enabled", "enabled"), &Part::set_normal_maps_enabled);
 	ClassDB::bind_method(D_METHOD("is_archivable"), &Part::is_archivable);
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &Part::set_archivable);
 	ClassDB::bind_method(D_METHOD("is_locked"), &Part::is_locked);
