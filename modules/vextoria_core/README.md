@@ -48,6 +48,15 @@ The client normal-map setting now does so explicitly. Material asset selection,
 complete legacy rendering semantics and touch/assembly mirrors remain outside
 this native appearance slice.
 
+Part also exposes native authored `Shape` and `Material` enum state and emits
+`vextoria_property_changed` whenever native Size, Color, physics, Shape,
+Material, appearance, or geometry authoring state changes. This is the bridge
+used by the temporary managed compatibility facade so Godot Inspector edits and
+the Roblox-facing API converge on the same authored Part state. Brick/Wedge
+geometry is still generated natively; resource-backed shape assets and material
+asset selection are still supplied by the compatibility layer until those
+registries are ported.
+
 `Model` is spatial (`Node3D`); `Folder` and `VextoriaScript` are non-spatial
 Godot `Node`s. This matches the recovered Roblox inheritance distinction
 (`ModelInstance` derives from `PVInstance`, while `Folder` derives from
