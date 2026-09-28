@@ -223,7 +223,9 @@ bool Part::try_resolve_shape_assets(int p_kind) {
 		return false;
 	}
 
-	Ref<Mesh> resolved_mesh = ResourceLoader::load(mesh_path, "", ResourceLoader::CACHE_MODE_IGNORE_DEEP);
+	// Authored unit meshes are immutable here; Part size lives on the internal
+	// nodes. Reuse them rather than reparsing the same asset for every Part.
+	Ref<Mesh> resolved_mesh = ResourceLoader::load(mesh_path, "", ResourceLoader::CACHE_MODE_REUSE);
 	if (resolved_mesh.is_null()) {
 		return false;
 	}
@@ -290,7 +292,10 @@ bool Part::try_resolve_material_asset(int p_kind) {
 		return false;
 	}
 
-	Ref<Material> resolved_material = ResourceLoader::load(material_path, "", ResourceLoader::CACHE_MODE_IGNORE_DEEP);
+	// Keep mutable material parameters private, but let ResourceLoader reuse
+	// external shader/texture dependencies. IGNORE_DEEP reloaded those heavy
+	// dependencies too, once per Part and again at every alpha transition.
+	Ref<Material> resolved_material = ResourceLoader::load(material_path, "", ResourceLoader::CACHE_MODE_IGNORE);
 	if (resolved_material.is_null()) {
 		return false;
 	}
@@ -303,7 +308,7 @@ bool Part::try_resolve_material_asset(int p_kind) {
 			if (source_shader.is_valid() && source_shader->get_path().ends_with("part.gdshader")) {
 				Ref<Shader> transparent_shader = ResourceLoader::load(
 						"res://resources/shaders/part/part_transparent.gdshader",
-						"Shader", ResourceLoader::CACHE_MODE_IGNORE_DEEP);
+						"Shader", ResourceLoader::CACHE_MODE_REUSE);
 				if (transparent_shader.is_valid()) {
 					shader_material->set_shader(transparent_shader);
 				}
@@ -365,6 +370,10 @@ void Part::set_appearance_material(const Ref<Material> &p_material) {
 	if (appearance_material == p_material) {
 		return;
 	}
+	// An explicit authored resource overrides registry selection. Only the
+	// registry resolver may opt back in, after installing its private source.
+	// Otherwise a later alpha edit silently replaces an Inspector assignment.
+	material_registry_owned = false;
 	if (appearance_material.is_valid()) {
 		appearance_material->disconnect_changed(callable_mp(this, &Part::appearance_material_changed));
 	}

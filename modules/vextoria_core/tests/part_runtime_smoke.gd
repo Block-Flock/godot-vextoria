@@ -18,6 +18,11 @@ func _run() -> void:
 	part.set("Size", Vector3(3, 2, 5))
 	part.set("Color", Color(0.8, 0.2, 0.1))
 	part.set("Anchored", true)
+	part.set("Size", Vector3(3, 2, 5))
+	part.set("Color", Color(0.8, 0.2, 0.1))
+	part.set("Anchored", true)
+	part.set("CanCollide", true)
+	assert(authored_changes == [&"Size", &"Color", &"Anchored"], "unchanged native properties generated duplicate notifications")
 	part.set("Locked", true)
 	assert(part.freeze, "Anchored must freeze the native body")
 	assert(part.has_meta("_edit_lock_") and part.get("Locked"), "Locked must share Godot's editor lock state")
@@ -58,6 +63,7 @@ func _run() -> void:
 	part.set("AppearanceMaterial", authored_material)
 	# Gameplay may temporarily install a non-box shape. Switching back to Brick
 	# must restore the native resources at the current authored size.
+	part.set("Shape", 4)
 	visual.mesh = BoxMesh.new()
 	collision.shape = BoxShape3D.new()
 	part.set("Shape", 0)

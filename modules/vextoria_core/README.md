@@ -56,6 +56,18 @@ under `vextoria/rendering/normal_maps_enabled` so Parts created later inherit
 the active render policy during native construction. Complete legacy rendering semantics
 and touch/assembly mirrors remain outside this slice.
 
+The native resolver reuses immutable unit meshes and external shader/texture
+dependencies via Godot's ResourceLoader cache. Material loads use CACHE_MODE_IGNORE
+(not IGNORE_DEEP) so each Part still owns mutable shader parameters while external
+dependencies remain shared. This follows the native text-resource loader's
+cache-mode contract in `scene/resources/resource_format_text.cpp`. Size stays on
+the internal nodes; sharing a unit mesh must not share Part size, tint, alpha or
+normal-map policy. Collider generation and full-world frame-time profiling remain
+separate work; this does not establish a whole-world performance target.
+An explicit AppearanceMaterial override relinquishes registry ownership, so
+subsequent Color alpha or rendering-policy changes cannot replace that authored
+resource. Setting Material explicitly selects the registry again.
+
 Part also exposes native authored `Shape` and `Material` enum state and emits
 `vextoria_property_changed` whenever native Size, Color, physics, Shape,
 Material, appearance, or geometry authoring state changes. This is the bridge
