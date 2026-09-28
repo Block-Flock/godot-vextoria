@@ -14,15 +14,18 @@ viewport lock action cannot disagree.
 The gameplay Brick path now retains this native `BoxMesh`/`BoxShape3D` pair at
 the authored `Size` instead of replacing it with a managed unit resource and
 scaling it a second time. `reset_builtin_geometry` restores that pair when a
-Part changes from an authored non-box shape back to Brick. Other shape variants
-still use the client resource path pending native geometry and collision ports.
+Part changes from an authored non-box shape back to Brick. Other shape variants now resolve the client's deterministic
+`res://resources/shapes/meshes/<Shape>.tres` registry from native C++, with
+the same convex/trimesh and Truss/Frame box-collider rules that the managed
+resolver used.
 The Wedge path also owns a native eight-triangle mesh and six-point convex
 collision hull, rebuilt at the authored Size. Its local orientation follows
 the source-derived wedge geometry contract already used by the client and was
 compared with `ROBLOX-main/App/include/v8world/WedgeMesh.h` and
 `ROBLOX-main/App/v8world/WedgePoly.cpp`; no Roblox source text is copied.
-The remaining shape selection/generation and material textures are still
-defined in the client source; their geometry resource installation is native.
+The authored shape assets still ship with the client project, but Part now
+selects and installs them natively. MultiMesh batching retains its managed
+resource cache as a separate rendering path.
 `Geometry` is native ClassDB/Inspector state for Brick (0) and Wedge (1), so
 Godot duplication, scene serialization and editor undo preserve the selected
 geometry without a gameplay wrapper. This is not the full legacy Shape enum.
@@ -31,10 +34,9 @@ an authored shape, preventing a later Size edit from rebuilding a stale
 Wedge over that resource.
 Resource geometry (2) now uses the native `GeometryMesh` and
 `GeometryCollision` properties. Godot owns their installation, sized internal
-frames, duplication and scene persistence. The gameplay adapter supplies the
-existing authored shape resources but no longer mutates the internal mesh or
-collider directly. This does not port every legacy shape generator or the
-managed Shape enum; material behavior and touch/assembly mirrors are still
+frames, duplication and scene persistence. The low-level resource properties remain as a fallback for isolated engine
+tests and future custom resource shapes, but normal gameplay Shape changes no
+longer require managed geometry staging. Touch/assembly mirrors remain
 separate migration work.
 
 `AppearanceMaterial` is an authored Material Resource on the native Part.
@@ -44,18 +46,22 @@ modifies the shared authored resource. Duplication and scene save/reopen retain
 the source resource and create independent applied materials. Resource.changed
 rebuilds the applied instance; Godot's material parameter setters do not emit
 that signal themselves, so programmatic source edits must call emit_changed.
-The client normal-map setting now does so explicitly. Material asset selection,
-complete legacy rendering semantics and touch/assembly mirrors remain outside
-this native appearance slice.
+Standalone Part material asset selection is now native: the Material enum maps
+directly to `res://resources/materials/parts/<Material>.tres`, including the
+transparent part shader when alpha crosses the existing 0.975 opacity
+threshold. Native Parts register in an internal non-persistent group so the
+existing normal-map setting can update native standalone materials while the
+managed MultiMesh cache remains in service. Complete legacy rendering semantics
+and touch/assembly mirrors remain outside this slice.
 
 Part also exposes native authored `Shape` and `Material` enum state and emits
 `vextoria_property_changed` whenever native Size, Color, physics, Shape,
 Material, appearance, or geometry authoring state changes. This is the bridge
 used by the temporary managed compatibility facade so Godot Inspector edits and
 the Roblox-facing API converge on the same authored Part state. Brick/Wedge
-geometry is still generated natively; resource-backed shape assets and material
-asset selection are still supplied by the compatibility layer until those
-registries are ported.
+geometry is generated natively, and resource-backed Shape plus standalone
+Material selection are also resolved natively. The managed compatibility layer
+still owns batched MultiMesh resource caches and the Roblox-facing object API.
 
 `Model` is spatial (`Node3D`); `Folder` and `VextoriaScript` are non-spatial
 Godot `Node`s. This matches the recovered Roblox inheritance distinction
