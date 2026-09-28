@@ -89,6 +89,8 @@ class Part : public RigidBody3D {
 	void update_appearance_color();
 	Ref<Mesh> geometry_mesh;
 	Ref<Shape3D> geometry_collision;
+	int shape_kind = 0;
+	int material_kind = 0;
 	bool builtin_wedge = false;
 	bool external_geometry = false;
 	void rebuild_wedge_geometry();
@@ -104,6 +106,10 @@ public:
 	void set_size(const Vector3 &p_size);
 	Color get_color() const { return color; }
 	void set_color(const Color &p_color);
+	int get_shape_kind() const { return shape_kind; }
+	void set_shape_kind(int p_kind);
+	int get_material_kind() const { return material_kind; }
+	void set_material_kind(int p_kind);
 	bool is_archivable() const { return archivable; }
 	void set_archivable(bool p_archivable) { archivable = p_archivable; }
 	bool is_locked() const;
