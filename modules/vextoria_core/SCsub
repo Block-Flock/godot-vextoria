@@ -10,5 +10,6 @@ env_vextoria_core.add_source_files(env.modules_sources, "vextoria_instance.cpp")
 env_vextoria_core.add_source_files(env.modules_sources, "vextoria_explorer_tree.cpp")
 env_vextoria_core.add_source_files(env.modules_sources, "vextoria_part_renderer.cpp")
 env_vextoria_core.add_source_files(env.modules_sources, "vextoria_weld.cpp")
+env_vextoria_core.add_source_files(env.modules_sources, "vextoria_rotate.cpp")
 if env.editor_build:
     env_vextoria_core.add_source_files(env.modules_sources, "editor/part_gizmo_plugin.cpp")

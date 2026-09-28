@@ -34,6 +34,7 @@
 #include "vextoria_instance.h"
 #include "vextoria_part_renderer.h"
 #include "vextoria_weld.h"
+#include "vextoria_rotate.h"
 
 #include "core/object/class_db.h"
 
@@ -71,6 +72,7 @@ void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(VextoriaExplorerTree);
 	GDREGISTER_CLASS(VextoriaPartRenderer);
 	GDREGISTER_CLASS(Weld);
+	GDREGISTER_CLASS(Rotate);
 }
 
 void uninitialize_vextoria_core_module(ModuleInitializationLevel p_level) {
