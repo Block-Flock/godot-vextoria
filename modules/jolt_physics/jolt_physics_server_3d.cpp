@@ -1609,14 +1609,14 @@ void JoltPhysicsServer3D::init() {
 }
 
 void JoltPhysicsServer3D::finish() {
-	if (temp_allocator != nullptr) {
-		delete temp_allocator;
-		temp_allocator = nullptr;
-	}
-
 	if (job_system != nullptr) {
 		delete job_system;
 		job_system = nullptr;
+	}
+
+	if (temp_allocator != nullptr) {
+		delete temp_allocator;
+		temp_allocator = nullptr;
 	}
 }
 

@@ -39,6 +39,7 @@
 
 void JoltJobSystem::Job::_execute(void *p_user_data) {
 	Job *job = static_cast<Job *>(p_user_data);
+	JoltJobSystem *system = static_cast<JoltJobSystem *>(job->GetJobSystem());
 
 #ifdef DEBUG_ENABLED
 	const uint64_t time_start = Time::get_singleton()->get_ticks_usec();
@@ -56,6 +57,9 @@ void JoltJobSystem::Job::_execute(void *p_user_data) {
 #endif
 
 	job->Release();
+	// Release may enqueue this job for reclamation. Do not touch the job after
+	// it, and publish completion only once the queue update is finished.
+	system->pending_tasks.fetch_sub(1, std::memory_order_release);
 }
 
 JoltJobSystem::Job::Job(const char *p_name, JPH::ColorArg p_color, JPH::JobSystem *p_job_system, const JPH::JobSystem::JobFunction &p_job_function, JPH::uint32 p_dependency_count) :
@@ -73,7 +77,7 @@ JoltJobSystem::Job::~Job() {
 	}
 }
 
-void JoltJobSystem::Job::push_completed(Job *p_job) {
+void JoltJobSystem::_push_completed(Job *p_job) {
 	Job *prev_head = nullptr;
 
 	do {
@@ -82,7 +86,7 @@ void JoltJobSystem::Job::push_completed(Job *p_job) {
 	} while (!completed_head.compare_exchange_weak(prev_head, p_job, std::memory_order_release, std::memory_order_relaxed));
 }
 
-JoltJobSystem::Job *JoltJobSystem::Job::pop_completed() {
+JoltJobSystem::Job *JoltJobSystem::_pop_completed() {
 	Job *prev_head = nullptr;
 
 	do {
@@ -97,6 +101,7 @@ JoltJobSystem::Job *JoltJobSystem::Job::pop_completed() {
 
 void JoltJobSystem::Job::queue() {
 	AddRef();
+	static_cast<JoltJobSystem *>(GetJobSystem())->pending_tasks.fetch_add(1, std::memory_order_relaxed);
 
 	// Ideally we would use Jolt's actual job name here, but I'd rather not incur the overhead of a memory allocation or
 	// thread-safe lookup every time we create/queue a task. So instead we use the same cached description for all of them.
@@ -148,11 +153,11 @@ void JoltJobSystem::QueueJobs(JPH::JobSystem::Job **p_jobs, JPH::uint p_job_coun
 }
 
 void JoltJobSystem::FreeJob(JPH::JobSystem::Job *p_job) {
-	Job::push_completed(static_cast<Job *>(p_job));
+	_push_completed(static_cast<Job *>(p_job));
 }
 
 void JoltJobSystem::_reclaim_jobs() {
-	while (Job *job = Job::pop_completed()) {
+	while (Job *job = _pop_completed()) {
 		jobs.DestructObject(job);
 	}
 }
@@ -161,6 +166,17 @@ JoltJobSystem::JoltJobSystem() :
 		JPH::JobSystemWithBarrier(JPH::cMaxPhysicsBarriers),
 		thread_count(MAX(1, WorkerThreadPool::get_singleton()->get_thread_count())) {
 	jobs.Init(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsJobs);
+}
+
+JoltJobSystem::~JoltJobSystem() {
+	// Physics barriers wait for job functions, not the worker callback's final
+	// reference release. A final post_step can miss those late completions.
+	// Keep the pool/system alive until all callbacks have published their jobs,
+	// then reclaim them (Job's destructor also waits for the worker task exit).
+	while (pending_tasks.load(std::memory_order_acquire) != 0) {
+		OS::get_singleton()->delay_usec(100);
+	}
+	_reclaim_jobs();
 }
 
 void JoltJobSystem::pre_step() {

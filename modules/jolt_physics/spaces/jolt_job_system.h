@@ -42,8 +42,7 @@
 
 class JoltJobSystem final : public JPH::JobSystemWithBarrier {
 	class Job : public JPH::JobSystem::Job {
-		inline static std::atomic<Job *> completed_head = nullptr;
-
+		friend class JoltJobSystem;
 #ifdef DEBUG_ENABLED
 		const char *name = nullptr;
 #endif
@@ -59,9 +58,6 @@ class JoltJobSystem final : public JPH::JobSystemWithBarrier {
 		Job(const Job &p_other) = delete;
 		Job(Job &&p_other) = delete;
 		~Job();
-
-		static void push_completed(Job *p_job);
-		static Job *pop_completed();
 
 		void queue();
 
@@ -79,6 +75,8 @@ class JoltJobSystem final : public JPH::JobSystemWithBarrier {
 #endif
 
 	JPH::FixedSizeFreeList<Job> jobs;
+	std::atomic<Job *> completed_head = nullptr;
+	std::atomic<uint32_t> pending_tasks{ 0 };
 
 	int thread_count = 0;
 
@@ -90,9 +88,12 @@ class JoltJobSystem final : public JPH::JobSystemWithBarrier {
 	virtual void FreeJob(JPH::JobSystem::Job *p_job) override;
 
 	void _reclaim_jobs();
+	void _push_completed(Job *p_job);
+	Job *_pop_completed();
 
 public:
 	JoltJobSystem();
+	~JoltJobSystem() override;
 
 	void pre_step();
 	void post_step();
