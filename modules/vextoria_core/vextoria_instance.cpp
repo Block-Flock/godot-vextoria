@@ -30,14 +30,17 @@
 
 #include "vextoria_instance.h"
 
+#include "core/io/resource_loader.h"
 #include "core/object/class_db.h"
 #include "core/object/callable_mp.h"
 #include "core/templates/local_vector.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
 #include "scene/resources/3d/box_shape_3d.h"
+#include "scene/resources/3d/concave_polygon_shape_3d.h"
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
 #include "scene/resources/3d/primitive_meshes.h"
+#include "scene/resources/mesh.h"
 #include "scene/resources/material.h"
 #include "scene/resources/shader.h"
 #include "scene/resources/surface_tool.h"
@@ -187,6 +190,48 @@ void Part::set_color(const Color &p_color) {
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Color"));
 }
 
+static const char *vextoria_part_shape_names[] = {
+	"Brick", "Sphere", "Cylinder", "Cone", "Wedge", "Corner", "Bevel", "Concave",
+	"Truss", "Frame", "Octant", "Torus", "BeveledCorner", "ConcaveCorner",
+	"TriangleCorner", "TriangleConcaveCorner"
+};
+
+bool Part::try_resolve_shape_assets(int p_kind) {
+	if (p_kind <= 0 || p_kind == 4 || p_kind >= 16) {
+		return false;
+	}
+
+	const String shape_name = vextoria_part_shape_names[p_kind];
+	const String mesh_path = "res://resources/shapes/meshes/" + shape_name + ".tres";
+	if (!ResourceLoader::exists(mesh_path, "Mesh")) {
+		return false;
+	}
+
+	Ref<Mesh> resolved_mesh = ResourceLoader::load(mesh_path, "Mesh", ResourceLoader::CACHE_MODE_IGNORE_DEEP);
+	if (resolved_mesh.is_null()) {
+		return false;
+	}
+
+	Ref<Shape3D> resolved_collision;
+	if (p_kind == 8 || p_kind == 9) {
+		Ref<BoxShape3D> box;
+		box.instantiate();
+		box->set_size(Vector3(1, 1, 1));
+		resolved_collision = box;
+	} else if (Object::cast_to<ArrayMesh>(resolved_mesh.ptr()) != nullptr) {
+		resolved_collision = resolved_mesh->create_trimesh_shape();
+	} else {
+		resolved_collision = resolved_mesh->create_convex_shape();
+	}
+	if (resolved_collision.is_null()) {
+		return false;
+	}
+
+	geometry_mesh = resolved_mesh;
+	geometry_collision = resolved_collision;
+	return true;
+}
+
 void Part::set_shape_kind(int p_kind) {
 	ERR_FAIL_COND_MSG(p_kind < 0 || p_kind > 15, "Part.Shape is outside the supported authored shape range.");
 	if (shape_kind == p_kind) {
@@ -200,9 +245,11 @@ void Part::set_shape_kind(int p_kind) {
 	} else {
 		builtin_wedge = false;
 		external_geometry = true;
-		// Semantic Shape can arrive before the managed compatibility asset
-		// resolver supplies its Mesh/Shape3D pair. Keep the prior native geometry
-		// intact until the complete authored resource pair is available.
+		// The native Part resolves Vextoria's authored shape registry directly.
+		// Isolated engine tests intentionally have no client asset pack, so retain
+		// the explicit GeometryMesh/GeometryCollision fallback for those fixtures
+		// and for future custom-resource shapes.
+		try_resolve_shape_assets(shape_kind);
 		if (geometry_mesh.is_valid() && geometry_collision.is_valid()) {
 			apply_external_geometry();
 		}
