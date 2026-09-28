@@ -34,6 +34,7 @@
 #include "core/io/resource_loader.h"
 #include "core/object/class_db.h"
 #include "core/object/callable_mp.h"
+#include "core/os/mutex.h"
 #include "core/templates/local_vector.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
@@ -159,6 +160,7 @@ bool Part::is_locked() const {
 }
 
 Part::~Part() {
+	clear_registry_shape_binding();
 	if (appearance_material.is_valid()) {
 		appearance_material->disconnect_changed(callable_mp(this, &Part::appearance_material_changed));
 	}
@@ -212,6 +214,72 @@ static const char *vextoria_part_shape_names[] = {
 	"TriangleCorner", "TriangleConcaveCorner"
 };
 
+namespace {
+struct PartShapeCacheEntry {
+	Ref<Mesh> mesh;
+	Ref<Shape3D> collision;
+	Callable invalidated;
+	uint64_t revision = 0;
+};
+
+struct PartShapeCache {
+	Mutex mutex;
+	PartShapeCacheEntry entries[16];
+};
+
+// Bounded by the authored shape registry, not by the number of world Parts.
+// Released at SCENE teardown while RenderingServer/PhysicsServer are alive.
+PartShapeCache *part_shape_cache = nullptr;
+
+void invalidate_part_shape_cache(int p_kind) {
+	if (!part_shape_cache) {
+		return;
+	}
+	MutexLock lock(part_shape_cache->mutex);
+	PartShapeCacheEntry &entry = part_shape_cache->entries[p_kind];
+	entry.collision.unref();
+	entry.revision++;
+}
+} // namespace
+
+void Part::clear_shape_asset_cache() {
+	if (!part_shape_cache) {
+		return;
+	}
+	for (PartShapeCacheEntry &entry : part_shape_cache->entries) {
+		if (entry.mesh.is_valid()) {
+			entry.mesh->disconnect_changed(entry.invalidated);
+		}
+	}
+	memdelete(part_shape_cache);
+	part_shape_cache = nullptr;
+}
+
+void Part::clear_registry_shape_binding() {
+	if (registry_shape_mesh.is_valid()) {
+		registry_shape_mesh->disconnect_changed(callable_mp(this, &Part::queue_registry_shape_refresh));
+		registry_shape_mesh.unref();
+	}
+}
+
+void Part::queue_registry_shape_refresh() {
+	if (!registry_shape_refresh_pending.exchange(true)) {
+		callable_mp(this, &Part::refresh_registry_shape).call_deferred();
+	}
+}
+
+void Part::refresh_registry_shape() {
+	registry_shape_refresh_pending.store(false);
+	if (!external_geometry || registry_shape_mesh.is_null()) {
+		return;
+	}
+	Ref<Shape3D> previous_collision = geometry_collision;
+	if (try_resolve_shape_assets(shape_kind) && previous_collision != geometry_collision) {
+		apply_external_geometry();
+		emit_signal(SNAME("vextoria_property_changed"), SNAME("GeometryCollision"));
+	}
+}
+
 bool Part::try_resolve_shape_assets(int p_kind) {
 	if (p_kind <= 0 || p_kind == 4 || p_kind >= 16) {
 		return false;
@@ -229,17 +297,55 @@ bool Part::try_resolve_shape_assets(int p_kind) {
 	if (resolved_mesh.is_null()) {
 		return false;
 	}
-
+	if (!part_shape_cache) {
+		part_shape_cache = memnew(PartShapeCache);
+	}
 	Ref<Shape3D> resolved_collision;
-	if (p_kind == 8 || p_kind == 9) {
-		Ref<BoxShape3D> box;
-		box.instantiate();
-		box->set_size(Vector3(1, 1, 1));
-		resolved_collision = box;
-	} else if (Object::cast_to<ArrayMesh>(resolved_mesh.ptr()) != nullptr) {
-		resolved_collision = resolved_mesh->create_trimesh_shape();
-	} else {
-		resolved_collision = resolved_mesh->create_convex_shape();
+	for (int attempt = 0; attempt < 3; attempt++) {
+		uint64_t revision;
+		{
+			MutexLock lock(part_shape_cache->mutex);
+			PartShapeCacheEntry &entry = part_shape_cache->entries[p_kind];
+			if (entry.mesh != resolved_mesh) {
+				if (entry.mesh.is_valid()) {
+					entry.mesh->disconnect_changed(entry.invalidated);
+				}
+				entry.mesh = resolved_mesh;
+				entry.collision.unref();
+				entry.invalidated = callable_mp_static(&invalidate_part_shape_cache).bind(p_kind);
+				entry.mesh->connect_changed(entry.invalidated);
+				entry.revision++;
+			}
+			if (entry.collision.is_valid()) {
+				resolved_collision = entry.collision;
+				break;
+			}
+			revision = entry.revision;
+		}
+		// Primitive meshes can emit changed while lazily generating their arrays.
+		// Build outside the lock and only publish a collider for a stable revision.
+		if (p_kind == 8 || p_kind == 9) {
+			Ref<BoxShape3D> box;
+			box.instantiate();
+			box->set_size(Vector3(1, 1, 1));
+			resolved_collision = box;
+		} else if (Object::cast_to<ArrayMesh>(resolved_mesh.ptr()) != nullptr) {
+			resolved_collision = resolved_mesh->create_trimesh_shape();
+		} else {
+			resolved_collision = resolved_mesh->create_convex_shape();
+		}
+		if (resolved_collision.is_null()) {
+			return false;
+		}
+		MutexLock lock(part_shape_cache->mutex);
+		PartShapeCacheEntry &entry = part_shape_cache->entries[p_kind];
+		if (entry.revision == revision) {
+			entry.collision = resolved_collision;
+			// CollisionShape3D changes a Shape's debug appearance on attachment.
+			// Only source mesh revisions invalidate this derived resource cache.
+			break;
+		}
+		resolved_collision.unref();
 	}
 	if (resolved_collision.is_null()) {
 		return false;
@@ -247,6 +353,11 @@ bool Part::try_resolve_shape_assets(int p_kind) {
 
 	geometry_mesh = resolved_mesh;
 	geometry_collision = resolved_collision;
+	if (registry_shape_mesh != resolved_mesh) {
+		clear_registry_shape_binding();
+		registry_shape_mesh = resolved_mesh;
+		registry_shape_mesh->connect_changed(callable_mp(this, &Part::queue_registry_shape_refresh));
+	}
 	return true;
 }
 
@@ -367,6 +478,12 @@ Ref<Material> Part::get_appearance_material() const {
 }
 
 void Part::_validate_property(PropertyInfo &p_property) const {
+	if (registry_shape_mesh.is_valid() &&
+			(p_property.name == SNAME("GeometryMesh") || p_property.name == SNAME("GeometryCollision"))) {
+		// These resources are derived from Shape. Saving them as overrides would
+		// detach the scene instance from registry revision updates after reload.
+		p_property.usage &= ~PROPERTY_USAGE_STORAGE;
+	}
 	if (p_property.name == SNAME("AppearanceMaterial") && material_registry_owned) {
 		// Registry appearance is derived from Material/Color/settings. Persisting
 		// it as an authored override would disable that derivation on duplicate
@@ -443,6 +560,7 @@ void Part::set_can_collide(bool p_can_collide) {
 }
 
 void Part::reset_builtin_geometry() {
+	clear_registry_shape_binding();
 	external_geometry = false;
 	builtin_wedge = false;
 	visual->set_scale(Vector3(1, 1, 1));
@@ -493,6 +611,7 @@ void Part::rebuild_wedge_geometry() {
 }
 
 void Part::set_builtin_wedge_geometry() {
+	clear_registry_shape_binding();
 	external_geometry = false;
 	visual->set_scale(Vector3(1, 1, 1));
 	collision->set_scale(Vector3(1, 1, 1));
@@ -538,6 +657,7 @@ void Part::set_geometry_mesh(const Ref<Mesh> &p_mesh) {
 	if (geometry_mesh == p_mesh) {
 		return;
 	}
+	clear_registry_shape_binding();
 	geometry_mesh = p_mesh;
 	if (external_geometry) {
 		visual->set_mesh(geometry_mesh);
@@ -553,6 +673,7 @@ void Part::set_geometry_collision(const Ref<Shape3D> &p_shape) {
 	if (geometry_collision == p_shape) {
 		return;
 	}
+	clear_registry_shape_binding();
 	geometry_collision = p_shape;
 	if (external_geometry) {
 		collision->set_shape(geometry_collision);

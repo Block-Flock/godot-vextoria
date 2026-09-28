@@ -62,8 +62,23 @@ dependencies via Godot's ResourceLoader cache. Material loads use CACHE_MODE_IGN
 dependencies remain shared. This follows the native text-resource loader's
 cache-mode contract in `scene/resources/resource_format_text.cpp`. Size stays on
 the internal nodes; sharing a unit mesh must not share Part size, tint, alpha or
-normal-map policy. Collider generation and full-world frame-time profiling remain
-separate work; this does not establish a whole-world performance target.
+normal-map policy. Resource-backed registry entries now reuse unit colliders in
+a bounded 16-slot native cache. Mesh Resource.changed invalidates the slot and
+coalesces deferred refreshes on existing Parts; generation occurs outside the
+cache lock and is published only for a stable mesh revision. Brick/Wedge retain
+their private size-dependent shapes. Derived GeometryMesh/GeometryCollision
+are rebuilt from Shape on duplication/reopen; explicit overrides retain storage
+and detach from registry refresh. Debug-appearance changes on a Shape do not
+invalidate the mesh-derived cache. Cached shapes have Godot's usual shared
+Resource semantics: use an explicit private override for per-Part geometry edits.
+The cache is released during scene-module teardown, before physics/rendering
+servers disappear. Full-world frame-time profiling remains separate work; this
+does not establish a whole-world performance target.
+This reuse principle was compared with geometry pooling in
+`ROBLOX-main/App/v8world/TriangleMesh.cpp::setCompoundMeshData`, which keys its
+Bullet decomposition by geometry and scale. Our authored unit-collider reuse
+is a Godot-native implementation, not a port of that Bullet decomposition or
+a claim of equivalent arbitrary nonuniform-scale physics.
 An explicit AppearanceMaterial override relinquishes registry ownership, so
 subsequent Color alpha or rendering-policy changes cannot replace that authored
 resource. Setting Material explicitly selects the registry again.

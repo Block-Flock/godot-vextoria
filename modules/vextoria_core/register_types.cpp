@@ -56,4 +56,5 @@ void uninitialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
+	Part::clear_shape_asset_cache();
 }

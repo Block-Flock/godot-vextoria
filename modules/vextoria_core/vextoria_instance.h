@@ -35,6 +35,8 @@
 #include "scene/3d/physics/rigid_body_3d.h"
 #include "scene/main/node.h"
 
+#include <atomic>
+
 class BoxMesh;
 class BoxShape3D;
 class ConvexPolygonShape3D;
@@ -89,6 +91,11 @@ class Part : public RigidBody3D {
 	void update_appearance_color();
 	Ref<Mesh> geometry_mesh;
 	Ref<Shape3D> geometry_collision;
+	Ref<Mesh> registry_shape_mesh;
+	std::atomic_bool registry_shape_refresh_pending{ false };
+	void clear_registry_shape_binding();
+	void queue_registry_shape_refresh();
+	void refresh_registry_shape();
 	int shape_kind = 0;
 	int material_kind = 0;
 	bool builtin_wedge = false;
@@ -108,6 +115,7 @@ protected:
 public:
 	Part();
 	~Part();
+	static void clear_shape_asset_cache();
 	Vector3 get_size() const { return size; }
 	void set_size(const Vector3 &p_size);
 	Color get_color() const { return color; }
