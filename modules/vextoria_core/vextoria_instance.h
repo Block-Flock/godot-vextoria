@@ -93,9 +93,13 @@ class Part : public RigidBody3D {
 	int material_kind = 0;
 	bool builtin_wedge = false;
 	bool external_geometry = false;
+	bool material_registry_owned = false;
+	bool material_registry_opaque = true;
+	bool normal_maps_enabled = true;
 	void rebuild_wedge_geometry();
 	void apply_external_geometry();
 	bool try_resolve_shape_assets(int p_kind);
+	bool try_resolve_material_asset(int p_kind);
 
 protected:
 	static void _bind_methods();
@@ -111,6 +115,7 @@ public:
 	void set_shape_kind(int p_kind);
 	int get_material_kind() const { return material_kind; }
 	void set_material_kind(int p_kind);
+	void set_normal_maps_enabled(bool p_enabled);
 	bool is_archivable() const { return archivable; }
 	void set_archivable(bool p_archivable) { archivable = p_archivable; }
 	bool is_locked() const;
