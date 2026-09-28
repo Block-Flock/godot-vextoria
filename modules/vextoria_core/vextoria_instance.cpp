@@ -194,7 +194,9 @@ void Part::set_color(const Color &p_color) {
 	color = p_color;
 	const bool new_opaque = color.a >= 0.975f;
 	if (material_registry_owned && old_opaque != new_opaque) {
-		try_resolve_material_asset(material_kind);
+		if (!try_resolve_material_asset(material_kind)) {
+			update_appearance_color();
+		}
 	} else {
 		update_appearance_color();
 	}
@@ -214,11 +216,11 @@ bool Part::try_resolve_shape_assets(int p_kind) {
 
 	const String shape_name = vextoria_part_shape_names[p_kind];
 	const String mesh_path = "res://resources/shapes/meshes/" + shape_name + ".tres";
-	if (!ResourceLoader::exists(mesh_path, "Mesh")) {
+	if (!ResourceLoader::exists(mesh_path)) {
 		return false;
 	}
 
-	Ref<Mesh> resolved_mesh = ResourceLoader::load(mesh_path, "Mesh", ResourceLoader::CACHE_MODE_IGNORE_DEEP);
+	Ref<Mesh> resolved_mesh = ResourceLoader::load(mesh_path, "", ResourceLoader::CACHE_MODE_IGNORE_DEEP);
 	if (resolved_mesh.is_null()) {
 		return false;
 	}
@@ -281,11 +283,11 @@ bool Part::try_resolve_material_asset(int p_kind) {
 
 	const String material_name = vextoria_part_material_names[p_kind];
 	const String material_path = "res://resources/materials/parts/" + material_name + ".tres";
-	if (!ResourceLoader::exists(material_path, "Material")) {
+	if (!ResourceLoader::exists(material_path)) {
 		return false;
 	}
 
-	Ref<Material> resolved_material = ResourceLoader::load(material_path, "Material", ResourceLoader::CACHE_MODE_IGNORE_DEEP);
+	Ref<Material> resolved_material = ResourceLoader::load(material_path, "", ResourceLoader::CACHE_MODE_IGNORE_DEEP);
 	if (resolved_material.is_null()) {
 		return false;
 	}
