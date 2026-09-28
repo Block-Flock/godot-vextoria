@@ -60,6 +60,7 @@ protected:
 	void _notification(int p_what);
 
 	virtual void _configure_joint(RID p_joint, PhysicsBody3D *body_a, PhysicsBody3D *body_b) = 0;
+	virtual bool _is_joint_enabled() const { return true; }
 
 	static void _bind_methods();
 
@@ -73,6 +74,7 @@ public:
 
 	void set_node_b(const NodePath &p_node_b);
 	NodePath get_node_b() const;
+	void set_nodes(const NodePath &p_node_a, const NodePath &p_node_b);
 
 	void set_solver_priority(int p_priority);
 	int get_solver_priority() const;

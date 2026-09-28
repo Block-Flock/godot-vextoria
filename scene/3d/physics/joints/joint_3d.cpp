@@ -36,13 +36,13 @@
 void Joint3D::_disconnect_signals() {
 	Node *node_a = get_node_or_null(a);
 	PhysicsBody3D *body_a = Object::cast_to<PhysicsBody3D>(node_a);
-	if (body_a) {
+	if (body_a && body_a->is_connected(SceneStringName(tree_exiting), callable_mp(this, &Joint3D::_body_exit_tree))) {
 		body_a->disconnect(SceneStringName(tree_exiting), callable_mp(this, &Joint3D::_body_exit_tree));
 	}
 
 	Node *node_b = get_node_or_null(b);
 	PhysicsBody3D *body_b = Object::cast_to<PhysicsBody3D>(node_b);
-	if (body_b) {
+	if (body_b && body_b->is_connected(SceneStringName(tree_exiting), callable_mp(this, &Joint3D::_body_exit_tree))) {
 		body_b->disconnect(SceneStringName(tree_exiting), callable_mp(this, &Joint3D::_body_exit_tree));
 	}
 }
@@ -54,6 +54,11 @@ void Joint3D::_body_exit_tree() {
 }
 
 void Joint3D::_update_joint(bool p_only_free) {
+	// Disabled/logical joints must not retain callbacks to old endpoints.
+	// Setters can also disconnect first; make the cleanup idempotent.
+	if (configured) {
+		_disconnect_signals();
+	}
 	if (ba.is_valid() && bb.is_valid()) {
 		PhysicsServer3D::get_singleton()->body_remove_collision_exception(ba, bb);
 		PhysicsServer3D::get_singleton()->body_remove_collision_exception(bb, ba);
@@ -64,7 +69,7 @@ void Joint3D::_update_joint(bool p_only_free) {
 
 	configured = false;
 
-	if (p_only_free || !is_inside_tree()) {
+	if (p_only_free || !is_inside_tree() || !_is_joint_enabled()) {
 		PhysicsServer3D::get_singleton()->joint_clear(joint);
 		warning = String();
 		return;
@@ -136,6 +141,15 @@ void Joint3D::set_node_a(const NodePath &p_node_a) {
 	}
 
 	a = p_node_a;
+	_update_joint();
+}
+
+void Joint3D::set_nodes(const NodePath &p_node_a, const NodePath &p_node_b) {
+	if (is_configured()) {
+		_disconnect_signals();
+	}
+	a = p_node_a;
+	b = p_node_b;
 	_update_joint();
 }
 
@@ -243,6 +257,7 @@ void Joint3D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_node_b", "node"), &Joint3D::set_node_b);
 	ClassDB::bind_method(D_METHOD("get_node_b"), &Joint3D::get_node_b);
+	ClassDB::bind_method(D_METHOD("set_nodes", "node_a", "node_b"), &Joint3D::set_nodes);
 
 	ClassDB::bind_method(D_METHOD("set_solver_priority", "priority"), &Joint3D::set_solver_priority);
 	ClassDB::bind_method(D_METHOD("get_solver_priority"), &Joint3D::get_solver_priority);
