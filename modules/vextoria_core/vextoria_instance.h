@@ -103,6 +103,7 @@ class Part : public RigidBody3D {
 
 protected:
 	static void _bind_methods();
+	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	Part();

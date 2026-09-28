@@ -5,6 +5,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	assert(ClassDB.is_parent_class("Part", "RigidBody3D"), "Part must be the native physics body")
+	assert(ClassDB.class_get_property_default_value("Part", "AppearanceMaterial") == null, "derived appearance must not become a ClassDB default resource")
 	var scene_root := Node3D.new()
 	scene_root.name = "NativePartSmoke"
 	root.add_child(scene_root)

@@ -366,6 +366,15 @@ Ref<Material> Part::get_appearance_material() const {
 	return appearance_material;
 }
 
+void Part::_validate_property(PropertyInfo &p_property) const {
+	if (p_property.name == SNAME("AppearanceMaterial") && material_registry_owned) {
+		// Registry appearance is derived from Material/Color/settings. Persisting
+		// it as an authored override would disable that derivation on duplicate
+		// or scene reload. Explicit custom resources retain normal Godot storage.
+		p_property.usage &= ~PROPERTY_USAGE_STORAGE;
+	}
+}
+
 void Part::set_appearance_material(const Ref<Material> &p_material) {
 	if (appearance_material == p_material) {
 		return;

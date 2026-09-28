@@ -42,6 +42,10 @@ void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_ABSTRACT_CLASS(VextoriaInstance);
 	GDREGISTER_CLASS(Part);
+	// AppearanceMaterial is an optional authored override. The default Part
+	// derives its material from the registry; do not retain that live GPU
+	// resource in ClassDB's process-wide default-value cache.
+	ClassDB::set_property_default_value("Part", "AppearanceMaterial", Variant());
 	GDREGISTER_CLASS(Model);
 	GDREGISTER_CLASS(Folder);
 	GDREGISTER_CLASS(VextoriaScript);

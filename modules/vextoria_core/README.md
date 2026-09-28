@@ -67,6 +67,12 @@ separate work; this does not establish a whole-world performance target.
 An explicit AppearanceMaterial override relinquishes registry ownership, so
 subsequent Color alpha or rendering-policy changes cannot replace that authored
 resource. Setting Material explicitly selects the registry again.
+Registry-generated appearance is not stored as an authored AppearanceMaterial
+in Godot scenes or duplicated nodes: it is rebuilt from semantic Material state.
+Custom overrides retain normal Resource storage. This distinction preserves
+opacity transitions and normal-map policy after native scene roundtrips.
+The ClassDB default for the optional authored AppearanceMaterial override is
+explicitly null; it must not retain a live registry shader through engine teardown.
 
 Part also exposes native authored `Shape` and `Material` enum state and emits
 `vextoria_property_changed` whenever native Size, Color, physics, Shape,
