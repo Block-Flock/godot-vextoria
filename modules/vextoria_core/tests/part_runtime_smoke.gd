@@ -10,6 +10,8 @@ func _run() -> void:
 	root.add_child(scene_root)
 	var part: RigidBody3D = ClassDB.instantiate("Part")
 	part.name = "TestPart"
+	var authored_changes: Array[StringName] = []
+	part.connect("vextoria_property_changed", func(property: StringName) -> void: authored_changes.append(property))
 	scene_root.add_child(part)
 	part.owner = scene_root
 	part.set("Size", Vector3(3, 2, 5))
@@ -31,6 +33,8 @@ func _run() -> void:
 	var authored_material := StandardMaterial3D.new()
 	authored_material.albedo_color = Color.BLUE
 	part.set("AppearanceMaterial", authored_material)
+	part.set("Material", 8)
+	assert(part.get("Material") == 8, "native Material enum state did not persist")
 	assert(visual.material_override != authored_material and visual.material_override.albedo_color.is_equal_approx(part.get("Color")), "native tint must use a local material instance")
 	assert(authored_material.albedo_color == Color.BLUE, "native tint modified the shared authored material")
 	var peer: RigidBody3D = ClassDB.instantiate("Part")
@@ -55,10 +59,10 @@ func _run() -> void:
 	# must restore the native resources at the current authored size.
 	visual.mesh = BoxMesh.new()
 	collision.shape = BoxShape3D.new()
-	part.call("reset_builtin_geometry")
+	part.set("Shape", 0)
 	assert(visual.mesh is BoxMesh and visual.mesh.size == Vector3(3, 2, 5), "Brick did not restore native visual size")
 	assert(collision.shape is BoxShape3D and collision.shape.size == Vector3(3, 2, 5), "Brick did not restore native collision size")
-	part.set("Geometry", 1)
+	part.set("Shape", 4)
 	assert(visual.mesh is ArrayMesh and visual.mesh.get_aabb().size.is_equal_approx(Vector3(3, 2, 5)), "native wedge mesh lost authored size")
 	var wedge_arrays: Array = visual.mesh.surface_get_arrays(0)
 	var wedge_vertices: PackedVector3Array = wedge_arrays[Mesh.ARRAY_VERTEX]
@@ -69,11 +73,11 @@ func _run() -> void:
 	assert(visual.mesh.get_aabb().size.is_equal_approx(Vector3(4, 3, 6)), "native wedge resize did not update visual")
 	assert(collision.shape.points[0].is_equal_approx(Vector3(2, 1.5, 3)), "native wedge resize did not update collision")
 	var wedge_duplicate := part.duplicate()
-	assert(wedge_duplicate.get("Geometry") == 1 and wedge_duplicate.get_node("Visual").mesh is ArrayMesh, "Godot duplication lost native wedge state")
+	assert(wedge_duplicate.get("Shape") == 4 and wedge_duplicate.get_node("Visual").mesh is ArrayMesh, "Godot duplication lost native wedge state")
 	assert(wedge_duplicate.get_node("Collision").shape is ConvexPolygonShape3D, "Godot duplication lost native wedge hull")
 	assert(wedge_duplicate.get_child_count(true) == 2, "Godot duplication copied internal geometry twice")
 	wedge_duplicate.free()
-	part.call("reset_builtin_geometry")
+	part.set("Shape", 0)
 	part.set("Size", Vector3(3, 2, 5))
 
 	await physics_frame
@@ -92,14 +96,14 @@ func _run() -> void:
 	var resource_shape := SphereShape3D.new()
 	part.set("GeometryMesh", resource_mesh)
 	part.set("GeometryCollision", resource_shape)
-	part.set("Geometry", 2)
+	part.set("Shape", 1)
 	part.set("Size", Vector3(4, 3, 6))
 	assert(visual.mesh == resource_mesh and collision.shape == resource_shape, "native resize replaced authored resources")
 	assert(visual.scale.is_equal_approx(Vector3(4, 3, 6)) and collision.scale.is_equal_approx(Vector3(4, 3, 6)), "native resource geometry did not resize")
 	part.set("Size", Vector3(3, 2, 5))
 	var resource_duplicate := part.duplicate()
 	resource_duplicate.set("Size", Vector3.ONE)
-	assert(resource_duplicate.get("Geometry") == 2 and resource_duplicate.get_node("Visual").mesh is SphereMesh, "duplication lost resource geometry")
+	assert(resource_duplicate.get("Shape") == 1 and resource_duplicate.get("Geometry") == 2 and resource_duplicate.get_node("Visual").mesh is SphereMesh, "duplication lost semantic/resource geometry")
 	assert(visual.scale.is_equal_approx(Vector3(3, 2, 5)), "duplicate Size changed the original Part")
 	resource_duplicate.free()
 
@@ -113,11 +117,14 @@ func _run() -> void:
 	var reopened_part := reopened_root.get_node("TestPart")
 	assert(reopened_part.get_class() == "Part", "reload must keep native class")
 	assert(reopened_part.get("Size") == Vector3(3, 2, 5), "reload must keep Size")
-	assert(reopened_part.get("Geometry") == 2 and reopened_part.get_node("Visual").mesh is SphereMesh, "reload lost native resource mesh")
+	assert(reopened_part.get("Shape") == 1 and reopened_part.get("Geometry") == 2 and reopened_part.get_node("Visual").mesh is SphereMesh, "reload lost native semantic/resource mesh")
+	assert(reopened_part.get("Material") == 8, "reload lost native material enum state")
 	assert(reopened_part.get("AppearanceMaterial") is StandardMaterial3D and reopened_part.get_node("Visual").material_override.albedo_color.is_equal_approx(part.get("Color")), "reload lost native authored appearance or per-Part tint")
 	assert(reopened_part.get_node("Collision").shape is SphereShape3D and reopened_part.get_node("Collision").scale.is_equal_approx(Vector3(3, 2, 5)), "reload lost native resource collider or size")
 	assert(reopened_part.get("Anchored") and reopened_part.get("CanCollide"), "reload must keep physics properties")
 	assert(reopened_part.get_child_count() == 0 and reopened_part.get_child_count(true) == 2, "reload must reconstruct only internal geometry")
+	for expected_property in [&"Size", &"Color", &"Anchored", &"Shape", &"Material", &"AppearanceMaterial"]:
+		assert(authored_changes.has(expected_property), "native authored-property signal missing " + String(expected_property))
 	assert(DirAccess.remove_absolute(ProjectSettings.globalize_path(path)) == OK, "smoke output cleanup failed")
 	reopened_root.free()
 
