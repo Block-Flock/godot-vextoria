@@ -24,52 +24,59 @@ VextoriaPartRenderer::~VextoriaPartRenderer() {
 bool VextoriaPartRenderer::eligible(const Part *p_part, const Admission &p_admission) const {
 	// Arbitrary authored geometry/material overrides retain their exact native
 	// standalone renderer. Never silently batch them as a catalog primitive.
-	return p_admission.allowed && p_part->is_anchored() && p_part->is_inside_tree() && p_part->is_visible_in_tree() &&
+	return p_admission.allowed && p_admission.primitive_visible && p_part->is_anchored() && p_part->is_inside_tree() && p_part->is_visible_in_tree() &&
 			(!p_part->external_geometry || p_part->registry_shape_mesh.is_valid()) &&
 			(p_part->material_registry_owned || p_part->appearance_material.is_null());
 }
 
 void VextoriaPartRenderer::set_batch_state(Part *p_part, bool p_batched) {
 	const bool changed = p_part->render_batched != p_batched;
+	Admission *admission = admitted.getptr(p_part->get_instance_id());
 	p_part->render_batched = p_batched;
-	p_part->visual->set_visible(!p_batched);
-	if (changed) {
+	p_part->visual->set_visible(!p_batched && (!admission || admission->primitive_visible));
+	if (changed || (admission && !admission->state_published)) {
+		if (admission) {
+			admission->state_published = true;
+		}
 		p_part->emit_signal(SNAME("vextoria_batch_state_changed"), p_batched);
 	}
 }
 
-void VextoriaPartRenderer::admit_part(Part *p_part, bool p_allowed, bool p_shadows) {
+void VextoriaPartRenderer::admit_part(Part *p_part, bool p_allowed, bool p_shadows, bool p_primitive_visible) {
 	ERR_FAIL_NULL(p_part);
 	ERR_FAIL_COND(!is_inside_tree() || !p_part->is_inside_tree());
 	ERR_FAIL_COND_MSG(get_world_3d() != p_part->get_world_3d(), "Native Part renderer cannot admit another viewport's Part.");
 	ERR_FAIL_COND_MSG(p_part->render_owner.is_valid() && p_part->render_owner != get_instance_id(), "Part already belongs to another native renderer.");
 	ObjectID id = p_part->get_instance_id();
 	if (admitted.has(id)) {
-		set_part_policy(p_part, p_allowed, p_shadows);
+		set_part_policy(p_part, p_allowed, p_shadows, p_primitive_visible);
 		return;
 	}
 	Admission admission;
 	admission.allowed = p_allowed;
 	admission.shadows = p_shadows;
+	admission.primitive_visible = p_primitive_visible;
 	admission.previously_notified_transform = p_part->is_transform_notification_enabled();
 	admitted.insert(id, admission);
 	p_part->render_owner = get_instance_id();
 	p_part->set_notify_transform(true);
 	p_part->connect(SNAME("vextoria_property_changed"), callable_mp(this, &VextoriaPartRenderer::property_changed).bind(uint64_t(id)));
 	p_part->connect(SNAME("tree_exiting"), callable_mp(this, &VextoriaPartRenderer::part_exiting).bind(uint64_t(id)));
-	invalidate_part(id);
+	queue_part(id);
 }
 
-void VextoriaPartRenderer::set_part_policy(Part *p_part, bool p_allowed, bool p_shadows) {
+void VextoriaPartRenderer::set_part_policy(Part *p_part, bool p_allowed, bool p_shadows, bool p_primitive_visible) {
 	ERR_FAIL_NULL(p_part);
 	Admission *admission = admitted.getptr(p_part->get_instance_id());
 	ERR_FAIL_NULL(admission);
-	if (admission->allowed == p_allowed && admission->shadows == p_shadows) {
+	if (admission->allowed == p_allowed && admission->shadows == p_shadows && admission->primitive_visible == p_primitive_visible) {
 		return;
 	}
 	admission->allowed = p_allowed;
 	admission->shadows = p_shadows;
-	invalidate_part(p_part->get_instance_id());
+	admission->primitive_visible = p_primitive_visible;
+	// Explicit policy changes must also reach initially standalone Parts.
+	queue_part(p_part->get_instance_id());
 }
 
 void VextoriaPartRenderer::property_changed(const StringName &p_property, uint64_t p_id) {
@@ -89,6 +96,10 @@ void VextoriaPartRenderer::invalidate_part(ObjectID p_id) {
 	if (!admission || !part || (admission->slot < 0 && !eligible(part, *admission))) {
 		return;
 	}
+	queue_part(p_id);
+}
+
+void VextoriaPartRenderer::queue_part(ObjectID p_id) {
 	if (!dirty.has(p_id)) {
 		dirty.insert(p_id);
 		pending.push_back(p_id);
@@ -321,9 +332,9 @@ void VextoriaPartRenderer::_notification(int p_what) {
 }
 
 void VextoriaPartRenderer::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("admit_part", "part", "allowed", "shadows"), &VextoriaPartRenderer::admit_part, DEFVAL(true), DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("admit_part", "part", "allowed", "shadows", "primitive_visible"), &VextoriaPartRenderer::admit_part, DEFVAL(true), DEFVAL(true), DEFVAL(true));
 	ClassDB::bind_method(D_METHOD("remove_part", "part"), &VextoriaPartRenderer::remove_part);
-	ClassDB::bind_method(D_METHOD("set_part_policy", "part", "allowed", "shadows"), &VextoriaPartRenderer::set_part_policy);
+	ClassDB::bind_method(D_METHOD("set_part_policy", "part", "allowed", "shadows", "primitive_visible"), &VextoriaPartRenderer::set_part_policy, DEFVAL(true));
 	ClassDB::bind_method(D_METHOD("clear_parts"), &VextoriaPartRenderer::clear_parts);
 	ClassDB::bind_method(D_METHOD("get_admitted_count"), &VextoriaPartRenderer::get_admitted_count);
 	ClassDB::bind_method(D_METHOD("get_batched_count"), &VextoriaPartRenderer::get_batched_count);

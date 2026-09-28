@@ -105,6 +105,18 @@ func _run() -> void:
 	await _drain()
 	if not _check(renderer.get_batched_count() == 1, "dynamic Part did not return to native batching"):
 		return
+	renderer.set_part_policy(first, false, false, false)
+	await _drain()
+	if not _check(not first.is_render_batched() and not first.get_node("Visual").visible and first.get_rid() == body_rid, "mesh override policy exposed a primitive or changed physical identity"):
+		return
+	renderer.set_part_policy(first, false, false, true)
+	await _drain()
+	if not _check(first.get_node("Visual").visible and first.get_node("Visual").cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "standalone policy did not publish primitive/shadow state"):
+		return
+	renderer.set_part_policy(first, true, true, true)
+	await _drain()
+	if not _check(first.is_render_batched(), "restoring native primitive policy lost batch admission"):
+		return
 	var custom := BoxMesh.new()
 	custom.size = Vector3(0.75, 0.75, 0.75)
 	first.set("GeometryMesh", custom)

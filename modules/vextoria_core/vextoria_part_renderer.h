@@ -18,6 +18,8 @@ class VextoriaPartRenderer : public Node3D {
 	struct Admission {
 		bool allowed = true;
 		bool shadows = true;
+		bool primitive_visible = true;
+		bool state_published = false;
 		bool previously_notified_transform = false;
 		String batch;
 		int slot = -1;
@@ -47,15 +49,16 @@ class VextoriaPartRenderer : public Node3D {
 	Ref<Mesh> resolve_mesh(Part *p_part);
 	Ref<Material> resolve_material(Part *p_part, const String &p_key);
 	void set_batch_state(Part *p_part, bool p_batched);
+	void queue_part(ObjectID p_id);
 
 protected:
 	static void _bind_methods();
 	void _notification(int p_what);
 
 public:
-	void admit_part(Part *p_part, bool p_allowed = true, bool p_shadows = true);
+	void admit_part(Part *p_part, bool p_allowed = true, bool p_shadows = true, bool p_primitive_visible = true);
 	void remove_part(Part *p_part);
-	void set_part_policy(Part *p_part, bool p_allowed, bool p_shadows);
+	void set_part_policy(Part *p_part, bool p_allowed, bool p_shadows, bool p_primitive_visible = true);
 	void invalidate_part(ObjectID p_id);
 	void clear_parts();
 	int get_admitted_count() const { return admitted.size(); }
