@@ -156,6 +156,8 @@ func _run_smoke() -> void:
 
 	var has_size := false
 	var has_color := false
+	var has_shape := false
+	var has_material := false
 	var has_geometry := false
 	var has_geometry_mesh := false
 	var has_geometry_collision := false
@@ -163,12 +165,14 @@ func _run_smoke() -> void:
 	for property in part.get_property_list():
 		has_size = has_size or property.name == "Size"
 		has_color = has_color or property.name == "Color"
+		has_shape = has_shape or property.name == "Shape"
+		has_material = has_material or property.name == "Material"
 		has_geometry = has_geometry or property.name == "Geometry"
 		has_geometry_mesh = has_geometry_mesh or property.name == "GeometryMesh"
 		has_geometry_collision = has_geometry_collision or property.name == "GeometryCollision"
 		has_appearance = has_appearance or property.name == "AppearanceMaterial"
-	if not has_size or not has_color or not has_geometry or not has_geometry_mesh or not has_geometry_collision or not has_appearance:
-		_fail("ClassDB did not expose Part.Size, Part.Color and Part.Geometry to the Inspector")
+	if not has_size or not has_color or not has_shape or not has_material or not has_geometry or not has_geometry_mesh or not has_geometry_collision or not has_appearance:
+		_fail("ClassDB did not expose Part Size/Color/Shape/Material and native resources to the Inspector")
 		return
 
 	var editor_undo_redo: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
@@ -184,8 +188,10 @@ func _run_smoke() -> void:
 	editor_undo_redo.create_action("Edit native Part", UndoRedo.MERGE_DISABLE, part)
 	editor_undo_redo.add_do_property(part, "Size", Vector3(5, 2, 3))
 	editor_undo_redo.add_undo_property(part, "Size", Vector3(4, 1, 2))
-	editor_undo_redo.add_do_property(part, "Geometry", 1)
-	editor_undo_redo.add_undo_property(part, "Geometry", 0)
+	editor_undo_redo.add_do_property(part, "Shape", 4)
+	editor_undo_redo.add_undo_property(part, "Shape", 0)
+	editor_undo_redo.add_do_property(part, "Material", 8)
+	editor_undo_redo.add_undo_property(part, "Material", 0)
 	var authored_appearance := StandardMaterial3D.new()
 	authored_appearance.roughness = 0.35
 	editor_undo_redo.add_do_property(part, "AppearanceMaterial", authored_appearance)
@@ -193,16 +199,16 @@ func _run_smoke() -> void:
 	editor_undo_redo.add_do_property(part, "position", Vector3(8, 4, 2))
 	editor_undo_redo.add_undo_property(part, "position", Vector3.ZERO)
 	editor_undo_redo.commit_action()
-	if part.get("Size") != Vector3(5, 2, 3) or part.position != Vector3(8, 4, 2) or part.get("Geometry") != 1:
+	if part.get("Size") != Vector3(5, 2, 3) or part.position != Vector3(8, 4, 2) or part.get("Shape") != 4 or part.get("Material") != 8:
 		_fail("native Part property/transform edit was not applied")
 		return
-	if not undo_stack.undo() or part.get("Size") != Vector3(4, 1, 2) or part.position != Vector3.ZERO or part.get("Geometry") != 0:
+	if not undo_stack.undo() or part.get("Size") != Vector3(4, 1, 2) or part.position != Vector3.ZERO or part.get("Shape") != 0 or part.get("Material") != 0:
 		_fail("native Part property/transform undo failed")
 		return
 	if part.get("AppearanceMaterial") != null:
 		_fail("native Part material undo failed")
 		return
-	if not undo_stack.redo() or part.get("Size") != Vector3(5, 2, 3) or part.position != Vector3(8, 4, 2) or part.get("Geometry") != 1:
+	if not undo_stack.redo() or part.get("Size") != Vector3(5, 2, 3) or part.position != Vector3(8, 4, 2) or part.get("Shape") != 4 or part.get("Material") != 8:
 		_fail("native Part property/transform redo failed")
 		return
 
@@ -223,8 +229,8 @@ func _run_smoke() -> void:
 	if reopened_part == null or reopened_part.get_class() != "Part" or reopened_part.get("Size") != Vector3(5, 2, 3) or reopened_part.position != Vector3(8, 4, 2):
 		_fail("save/reopen lost native Part identity, Size, or transform")
 		return
-	if reopened_part.get("Geometry") != 1 or reopened_part.get_node("Visual").mesh is not ArrayMesh or reopened_part.get_node("Collision").shape is not ConvexPolygonShape3D:
-		_fail("save/reopen lost native Wedge geometry")
+	if reopened_part.get("Shape") != 4 or reopened_part.get("Material") != 8 or reopened_part.get("Geometry") != 1 or reopened_part.get_node("Visual").mesh is not ArrayMesh or reopened_part.get_node("Collision").shape is not ConvexPolygonShape3D:
+		_fail("save/reopen lost native Shape/Material or Wedge geometry")
 		return
 	if reopened_part.get("AppearanceMaterial") is not StandardMaterial3D or not is_equal_approx(reopened_part.get_node("Visual").material_override.roughness, 0.35):
 		_fail("save/reopen lost native appearance")
