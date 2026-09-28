@@ -30,10 +30,11 @@
 
 #include "vextoria_instance.h"
 
+#include "core/config/engine.h"
 #include "core/config/project_settings.h"
 #include "core/io/resource_loader.h"
-#include "core/object/class_db.h"
 #include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
 #include "core/os/mutex.h"
 #include "core/templates/local_vector.h"
 #include "scene/3d/mesh_instance_3d.h"
@@ -42,8 +43,8 @@
 #include "scene/resources/3d/concave_polygon_shape_3d.h"
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
 #include "scene/resources/3d/primitive_meshes.h"
-#include "scene/resources/mesh.h"
 #include "scene/resources/material.h"
+#include "scene/resources/mesh.h"
 #include "scene/resources/shader.h"
 #include "scene/resources/surface_tool.h"
 
@@ -153,6 +154,7 @@ Part::Part() {
 	normal_maps_enabled = ProjectSettings::get_singleton()->get_setting(
 			"vextoria/rendering/normal_maps_enabled", true);
 	try_resolve_material_asset(material_kind);
+	refresh_editor_pick_geometry();
 }
 
 bool Part::is_locked() const {
@@ -160,10 +162,36 @@ bool Part::is_locked() const {
 }
 
 Part::~Part() {
+#ifdef TOOLS_ENABLED
+	if (editor_pick_mesh.is_valid()) {
+		editor_pick_mesh->disconnect_changed(callable_mp(static_cast<Node3D *>(this), &Node3D::update_gizmos));
+	}
+#endif
 	clear_registry_shape_binding();
 	if (appearance_material.is_valid()) {
 		appearance_material->disconnect_changed(callable_mp(this, &Part::appearance_material_changed));
 	}
+}
+
+void Part::refresh_editor_pick_geometry() {
+#ifdef TOOLS_ENABLED
+	// Only editor Parts need a picking BVH. Gameplay Parts must not gain a
+	// second per-resource rendering subscription just because tools are built.
+	if (!Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+	Ref<Mesh> current_mesh = visual->get_mesh();
+	if (editor_pick_mesh != current_mesh) {
+		if (editor_pick_mesh.is_valid()) {
+			editor_pick_mesh->disconnect_changed(callable_mp(static_cast<Node3D *>(this), &Node3D::update_gizmos));
+		}
+		editor_pick_mesh = current_mesh;
+		if (editor_pick_mesh.is_valid()) {
+			editor_pick_mesh->connect_changed(callable_mp(static_cast<Node3D *>(this), &Node3D::update_gizmos));
+		}
+	}
+	update_gizmos();
+#endif
 }
 
 void Part::set_locked(bool p_locked) {
@@ -188,6 +216,7 @@ void Part::set_size(const Vector3 &p_size) {
 	} else if (builtin_wedge) {
 		rebuild_wedge_geometry();
 	}
+	refresh_editor_pick_geometry();
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Size"));
 }
 
@@ -567,6 +596,7 @@ void Part::reset_builtin_geometry() {
 	collision->set_scale(Vector3(1, 1, 1));
 	visual->set_mesh(box_mesh);
 	collision->set_shape(box_shape);
+	refresh_editor_pick_geometry();
 }
 
 void Part::rebuild_wedge_geometry() {
@@ -608,6 +638,7 @@ void Part::rebuild_wedge_geometry() {
 	wedge_shape->set_points(hull_points);
 	visual->set_mesh(wedge_mesh);
 	collision->set_shape(wedge_shape);
+	refresh_editor_pick_geometry();
 }
 
 void Part::set_builtin_wedge_geometry() {
@@ -651,6 +682,7 @@ void Part::apply_external_geometry() {
 	collision->set_shape(geometry_collision);
 	visual->set_scale(size);
 	collision->set_scale(size);
+	refresh_editor_pick_geometry();
 }
 
 void Part::set_geometry_mesh(const Ref<Mesh> &p_mesh) {
@@ -662,6 +694,7 @@ void Part::set_geometry_mesh(const Ref<Mesh> &p_mesh) {
 	if (external_geometry) {
 		visual->set_mesh(geometry_mesh);
 	}
+	refresh_editor_pick_geometry();
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("GeometryMesh"));
 }
 

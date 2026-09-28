@@ -11,6 +11,14 @@ reopened `Part` reconstructs them from its native `Size` and `Color` properties.
 destroying the body. This preserves the same physics identity across edits.
 `Locked` reads and writes Godot's `_edit_lock_` state, so the Inspector and
 viewport lock action cannot disagree.
+The editor registers a native Part gizmo with Godot's Node3DEditor. Its picking
+triangles come from the actual internal visual mesh, with the visual's local
+size frame baked into Part-local geometry. Selection therefore resolves to
+the authored Part rather than an unowned implementation child, including
+when CanCollide is false. The normal editor selection, transform, lock and
+Inspector paths remain authoritative; there is no second Vextoria picker.
+Geometry replacement, size edits and mesh Resource.changed refresh the editor
+gizmo. These extra mesh subscriptions exist only in editor mode, not gameplay.
 The gameplay Brick path now retains this native `BoxMesh`/`BoxShape3D` pair at
 the authored `Size` instead of replacing it with a managed unit resource and
 scaling it a second time. `reset_builtin_geometry` restores that pair when a
@@ -138,7 +146,11 @@ Smoke coverage:
 - `tests/part_runtime_smoke.gd`: native physics identity, mesh and collision
   changes, toggles, save/reopen.
 - `tests/editor_slice_smoke.gd`: real Godot CreateDialog/SceneTreeDock,
-  selection/Inspector identity, property/transform and create undo, save/reopen.
+  viewport-click selection/Inspector identity, Locked and noncollidable Parts,
+  Wedge/resource replacement, rotated/scaled meshes, source mesh revisions,
+  empty-geometry rejection, property/transform and create undo, save/reopen.
+  Set `VEXTORIA_NATIVE_EDITOR_CAPTURE` to an absolute PNG path to retain the
+  real editor viewport, SceneTreeDock selection and Inspector capture.
 - `tests/part_visual_capture.gd`: Vulkan editor-target image of an authored
   native Part, for visual review alongside the executable geometry checks.
 - `tests/hinge_frame_smoke.gd`: fork-level joint solver override and

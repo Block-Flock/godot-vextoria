@@ -103,6 +103,10 @@ class Part : public RigidBody3D {
 	bool material_registry_owned = false;
 	bool material_registry_opaque = true;
 	bool normal_maps_enabled = true;
+#ifdef TOOLS_ENABLED
+	Ref<Mesh> editor_pick_mesh;
+#endif
+	void refresh_editor_pick_geometry();
 	void rebuild_wedge_geometry();
 	void apply_external_geometry();
 	bool try_resolve_shape_assets(int p_kind);

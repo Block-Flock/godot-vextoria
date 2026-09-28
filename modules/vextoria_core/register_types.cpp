@@ -35,7 +35,24 @@
 
 #include "core/object/class_db.h"
 
+#ifdef TOOLS_ENABLED
+#include "editor/editor_node.h"
+#include "editor/part_gizmo_plugin.h"
+#include "editor/scene/3d/node_3d_editor_plugin.h"
+
+static void initialize_vextoria_editor_gizmos() {
+	Ref<VextoriaPartGizmoPlugin> part_gizmo;
+	part_gizmo.instantiate();
+	Node3DEditor::get_singleton()->add_gizmo_plugin(part_gizmo);
+}
+#endif
+
 void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
+#ifdef TOOLS_ENABLED
+	if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
+		EditorNode::add_init_callback(initialize_vextoria_editor_gizmos);
+	}
+#endif
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}

@@ -32,6 +32,30 @@ func _find_node_named(parent: Node, expected_name: String) -> Node:
 			return found
 	return null
 
+func _pick_native_part(part: Node3D, camera: Camera3D, surface: Control, root: Node, local_point := Vector3.ZERO) -> bool:
+	var selection := EditorInterface.get_selection()
+	selection.clear()
+	EditorInterface.inspect_object(root)
+	for attempt in range(3):
+		await get_tree().process_frame
+	var world_point := part.global_transform * local_point
+	var pick_position := camera.unproject_position(world_point)
+	if camera.is_position_behind(world_point) or not Rect2(Vector2.ZERO, Vector2(camera.get_viewport().size)).has_point(pick_position):
+		return false
+	for pressed in [true, false]:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		click.position = pick_position
+		click.global_position = surface.global_position + pick_position
+		surface.gui_input.emit(click)
+		await get_tree().process_frame
+	for attempt in range(10):
+		await get_tree().process_frame
+		if selection.get_selected_nodes() == [part] and EditorInterface.get_inspector().get_edited_object() == part:
+			return true
+	return false
+
 func _run_smoke() -> void:
 	await get_tree().process_frame
 	for native_class in ["Part", "Model", "Folder", "VextoriaScript"]:
@@ -175,6 +199,75 @@ func _run_smoke() -> void:
 		_fail("ClassDB did not expose Part Size/Color/Shape/Material and native resources to the Inspector")
 		return
 
+	# Feed the editor viewport's real input surface, not EditorSelection.add_node.
+	# A native Part's internal Visual/Collision children are deliberately unowned
+	# scene implementation details. Its visible surface must still select Part.
+	EditorInterface.set_main_screen_editor("3D")
+	for attempt in range(10):
+		await get_tree().process_frame
+	var viewport := EditorInterface.get_editor_viewport_3d(0)
+	var camera := viewport.get_camera_3d()
+	var surface: Control = null
+	for child in viewport.get_parent().get_parent().get_children():
+		if not child is Control:
+			continue
+		for connection in child.get_signal_connection_list("gui_input"):
+			if connection.callable.get_object() == viewport.get_parent().get_parent():
+				surface = child
+				break
+	if surface == null or camera == null:
+		_fail("native editor viewport input surface/camera was not found; camera=" + str(camera) + " children=" + str(viewport.get_parent().get_parent().get_children()))
+		return
+	# Viewport picking follows the rendered mesh, not runtime CanCollide.
+	part.set("CanCollide", false)
+	if not await _pick_native_part(part, camera, surface, root):
+		_fail("viewport click did not select/inspect the visible native Part; selected=" + str(selection.get_selected_nodes()))
+		return
+	part.set("Locked", true)
+	if await _pick_native_part(part, camera, surface, root):
+		_fail("viewport picking ignored native Part Locked")
+		return
+	part.set("Locked", false)
+	part.set("Shape", 4)
+	if not await _pick_native_part(part, camera, surface, root):
+		_fail("viewport picking lost native Wedge after geometry replacement")
+		return
+	var pick_mesh := BoxMesh.new()
+	pick_mesh.size = Vector3.ONE
+	part.set("GeometryMesh", pick_mesh)
+	part.set("GeometryCollision", BoxShape3D.new())
+	part.set("Geometry", 2)
+	# A point beyond the unscaled unit mesh proves the internal size frame was
+	# baked into Part-local picking triangles, rather than silently discarded.
+	part.set("Size", Vector3(4, 3, 2))
+	part.rotation = Vector3(0.15, 0.3, -0.1)
+	if not await _pick_native_part(part, camera, surface, root, Vector3(1.5, 0, 0)):
+		_fail("viewport picking did not follow the scaled/rotated native resource mesh")
+		return
+	pick_mesh.size = Vector3(2, 1, 1)
+	if not await _pick_native_part(part, camera, surface, root, Vector3(3, 0, 0)):
+		_fail("viewport picking did not refresh after an authored mesh revision")
+		return
+	part.set("GeometryMesh", ArrayMesh.new())
+	if await _pick_native_part(part, camera, surface, root):
+		_fail("viewport retained picking triangles after the native visual became empty")
+		return
+	part.set("Shape", 0)
+	part.set("GeometryMesh", null)
+	part.set("GeometryCollision", null)
+	part.set("Size", Vector3(4, 1, 2))
+	part.rotation = Vector3.ZERO
+	part.set("CanCollide", true)
+	if not await _pick_native_part(part, camera, surface, root):
+		_fail("viewport picking did not recover after returning to native Brick")
+		return
+	var editor_capture := OS.get_environment("VEXTORIA_NATIVE_EDITOR_CAPTURE")
+	if not editor_capture.is_empty():
+		await RenderingServer.frame_post_draw
+		if get_tree().root.get_texture().get_image().save_png(editor_capture) != OK:
+			_fail("could not save the native editor viewport/selection capture")
+			return
+
 	var editor_undo_redo: EditorUndoRedoManager = EditorInterface.get_editor_undo_redo()
 	var scene_history_id: int = editor_undo_redo.get_object_history_id(part)
 	var undo_stack: UndoRedo = editor_undo_redo.get_history_undo_redo(scene_history_id)
@@ -260,5 +353,5 @@ func _run_smoke() -> void:
 	selection.clear()
 	EditorInterface.inspect_object(root)
 	await get_tree().process_frame
-	print(PASS_MARKER + ": SceneTreeDock, Inspector, property/transform undo, native save/reopen, creation undo")
+	print(PASS_MARKER + ": viewport picking, SceneTreeDock, Inspector, property/transform undo, native save/reopen, creation undo")
 	get_tree().quit(0)
