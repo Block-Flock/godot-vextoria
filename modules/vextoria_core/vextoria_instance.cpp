@@ -30,6 +30,8 @@
 
 #include "vextoria_instance.h"
 
+#include "vextoria_part_renderer.h"
+
 #include "core/config/engine.h"
 #include "core/config/project_settings.h"
 #include "core/io/resource_loader.h"
@@ -421,6 +423,59 @@ static const char *vextoria_part_material_names[] = {
 	"RustyIron", "Sand", "Sandstone", "Snow", "Stone", "Wood"
 };
 
+Ref<Mesh> Part::get_unit_render_mesh() {
+	const String path = "res://resources/shapes/meshes/" + String(vextoria_part_shape_names[shape_kind]) + ".tres";
+	if (ResourceLoader::exists(path)) {
+		return ResourceLoader::load(path, "Mesh", ResourceLoader::CACHE_MODE_REUSE);
+	}
+	return Ref<Mesh>();
+}
+
+Ref<Material> Part::get_unit_render_material() {
+	const String path = "res://resources/materials/parts/" + String(vextoria_part_material_names[material_kind]) + ".tres";
+	Ref<Material> source;
+	if (ResourceLoader::exists(path)) {
+		source = ResourceLoader::load(path, "Material", ResourceLoader::CACHE_MODE_REUSE);
+	}
+	Ref<Material> resolved;
+	if (source.is_valid()) {
+		resolved = source->duplicate();
+	} else {
+		Ref<StandardMaterial3D> fallback;
+		fallback.instantiate();
+		resolved = fallback;
+	}
+	if (BaseMaterial3D *base = Object::cast_to<BaseMaterial3D>(resolved.ptr())) {
+		base->set_albedo(Color(1, 1, 1));
+		base->set_flag(BaseMaterial3D::FLAG_ALBEDO_FROM_VERTEX_COLOR, true);
+		base->set_flag(BaseMaterial3D::FLAG_SRGB_VERTEX_COLOR, true);
+		base->set_transparency(color.a < 0.975f ? BaseMaterial3D::TRANSPARENCY_ALPHA : BaseMaterial3D::TRANSPARENCY_DISABLED);
+	} else if (ShaderMaterial *shader = Object::cast_to<ShaderMaterial>(resolved.ptr())) {
+		shader->set_shader_parameter(SNAME("color"), Color(1, 1, 1));
+		shader->set_shader_parameter(SNAME("use_normal_texture"), normal_maps_enabled);
+		if (color.a < 0.975f) {
+			Ref<Shader> transparent = ResourceLoader::load("res://resources/shaders/part/part_transparent.gdshader", "Shader", ResourceLoader::CACHE_MODE_REUSE);
+			if (transparent.is_valid()) {
+				shader->set_shader(transparent);
+			}
+		}
+	}
+	return resolved;
+}
+
+void Part::notify_native_renderer() {
+	VextoriaPartRenderer *renderer = ObjectDB::get_instance<VextoriaPartRenderer>(render_owner);
+	if (renderer) {
+		renderer->invalidate_part(get_instance_id());
+	}
+}
+
+void Part::_notification(int p_what) {
+	if ((p_what == NOTIFICATION_TRANSFORM_CHANGED || p_what == NOTIFICATION_VISIBILITY_CHANGED) && render_owner.is_valid()) {
+		notify_native_renderer();
+	}
+}
+
 bool Part::try_resolve_material_asset(int p_kind) {
 	if (p_kind < 0 || p_kind >= 21) {
 		return false;
@@ -565,6 +620,7 @@ void Part::appearance_material_changed() {
 	}
 	update_appearance_color();
 	visual->set_material_override(applied_appearance);
+	notify_native_renderer();
 }
 
 void Part::set_anchored(bool p_anchored) {
@@ -719,6 +775,9 @@ Ref<Shape3D> Part::get_geometry_collision() const {
 }
 
 void Part::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("is_render_batched"), &Part::is_render_batched);
+	ClassDB::bind_method(D_METHOD("has_native_renderer"), &Part::has_native_renderer);
+	ADD_SIGNAL(MethodInfo("vextoria_batch_state_changed", PropertyInfo(Variant::BOOL, "batched")));
 	ClassDB::bind_method(D_METHOD("get_size"), &Part::get_size);
 	ClassDB::bind_method(D_METHOD("set_size", "size"), &Part::set_size);
 	ClassDB::bind_method(D_METHOD("get_color"), &Part::get_color);

@@ -32,6 +32,7 @@
 
 #include "vextoria_explorer_tree.h"
 #include "vextoria_instance.h"
+#include "vextoria_part_renderer.h"
 
 #include "core/object/class_db.h"
 
@@ -67,6 +68,7 @@ void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(Folder);
 	GDREGISTER_CLASS(VextoriaScript);
 	GDREGISTER_CLASS(VextoriaExplorerTree);
+	GDREGISTER_CLASS(VextoriaPartRenderer);
 }
 
 void uninitialize_vextoria_core_module(ModuleInitializationLevel p_level) {

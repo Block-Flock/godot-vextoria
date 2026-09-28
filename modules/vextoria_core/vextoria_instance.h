@@ -47,6 +47,7 @@ class Mesh;
 class Shape3D;
 class StandardMaterial3D;
 class Material;
+class VextoriaPartRenderer;
 
 // Non-spatial Roblox Instances (folders and scripts) belong in Godot's Node
 // tree without acquiring a transform or a viewport gizmo.
@@ -71,6 +72,12 @@ public:
 // internal Godot implementation details, not additional Vextoria Instances.
 class Part : public RigidBody3D {
 	GDCLASS(Part, RigidBody3D);
+	friend class VextoriaPartRenderer;
+	ObjectID render_owner;
+	bool render_batched = false;
+	void notify_native_renderer();
+	Ref<Mesh> get_unit_render_mesh();
+	Ref<Material> get_unit_render_material();
 
 	Vector3 size = Vector3(4, 1, 2);
 	Color color = Color(0.639216, 0.635294, 0.647059);
@@ -114,11 +121,14 @@ class Part : public RigidBody3D {
 
 protected:
 	static void _bind_methods();
+	void _notification(int p_what);
 	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	Part();
 	~Part();
+	bool is_render_batched() const { return render_batched; }
+	bool has_native_renderer() const { return render_owner.is_valid(); }
 	static void clear_shape_asset_cache();
 	Vector3 get_size() const { return size; }
 	void set_size(const Vector3 &p_size);
