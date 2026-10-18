@@ -37,6 +37,10 @@ func _initialize() -> void:
 	_assert(_instance_names_from_api(parent) == ["First", "Second", "Third"], "native child API included helpers or changed order")
 	_assert(_instance_parent_from_api(first) == parent, "native parent API missed the marked SceneTree parent")
 	_assert(_instance_parent_from_api(helper) == null, "native parent API accepted an unmarked node")
+	_assert(_can_set_instance_parent(first, parent), "native parent preflight rejected a valid no-op")
+	_assert(_can_set_instance_parent(first, null), "native parent preflight rejected detach")
+	_assert(not _can_set_instance_parent(first, helper), "native parent preflight accepted an unmarked parent")
+	_assert(not _can_set_instance_parent(first, first_child), "native parent preflight accepted a cycle")
 	_assert(_move_instance_child(third, 0), "native Instance reorder returned false")
 	_assert_index(third, 0)
 	_assert_index(first, 1)
@@ -98,6 +102,9 @@ func _move_instance_child(node: Node, index: int) -> bool:
 
 func _set_instance_parent(node: Node, parent: Node) -> bool:
 	return ClassDB.class_call_static("VextoriaSceneHierarchy", "set_instance_parent", node, parent)
+
+func _can_set_instance_parent(node: Node, parent: Node) -> bool:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", node, parent)
 
 func _assert(condition: bool, message: String) -> void:
 	if not condition:

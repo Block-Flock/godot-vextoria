@@ -47,6 +47,16 @@ Node *VextoriaSceneHierarchy::get_instance_parent(Node *p_node) {
 	return is_vextoria_instance_node(parent) ? parent : nullptr;
 }
 
+bool VextoriaSceneHierarchy::can_set_instance_parent(Node *p_node, Node *p_parent) {
+	if (!is_vextoria_instance_node(p_node)) {
+		return false;
+	}
+	if (p_parent != nullptr && !is_vextoria_instance_node(p_parent)) {
+		return false;
+	}
+	return p_node != p_parent && (p_parent == nullptr || !p_node->is_ancestor_of(p_parent));
+}
+
 int64_t VextoriaSceneHierarchy::get_instance_child_index(Node *p_node) {
 	if (!is_vextoria_instance_node(p_node)) {
 		return -1;
@@ -101,13 +111,7 @@ bool VextoriaSceneHierarchy::move_instance_child(Node *p_node, int64_t p_index) 
 }
 
 bool VextoriaSceneHierarchy::set_instance_parent(Node *p_node, Node *p_parent) {
-	if (!is_vextoria_instance_node(p_node)) {
-		return false;
-	}
-	if (p_parent != nullptr && !is_vextoria_instance_node(p_parent)) {
-		return false;
-	}
-	if (p_node == p_parent || (p_parent != nullptr && p_node->is_ancestor_of(p_parent))) {
+	if (!can_set_instance_parent(p_node, p_parent)) {
 		return false;
 	}
 
@@ -134,6 +138,7 @@ bool VextoriaSceneHierarchy::set_instance_parent(Node *p_node, Node *p_parent) {
 void VextoriaSceneHierarchy::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_children", "parent"), &VextoriaSceneHierarchy::get_instance_children);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_parent", "node"), &VextoriaSceneHierarchy::get_instance_parent);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("can_set_instance_parent", "node", "parent"), &VextoriaSceneHierarchy::can_set_instance_parent);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_child_index", "node"), &VextoriaSceneHierarchy::get_instance_child_index);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("move_instance_child", "node", "index"), &VextoriaSceneHierarchy::move_instance_child);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("set_instance_parent", "node", "parent"), &VextoriaSceneHierarchy::set_instance_parent);
