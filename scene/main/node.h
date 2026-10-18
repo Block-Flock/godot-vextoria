@@ -395,6 +395,7 @@ protected:
 	friend class SceneState;
 
 	void _add_child_nocheck(Node *p_child, const StringName &p_name, InternalMode p_internal_mode = INTERNAL_MODE_DISABLED);
+	bool _is_vextoria_instance_node() const;
 	void _set_owner_nocheck(Node *p_owner);
 	void _set_name_nocheck(const StringName &p_name);
 

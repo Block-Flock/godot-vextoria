@@ -1716,6 +1716,7 @@ void Node::add_child(RequiredParam<Node> rp_child, bool p_force_readable_name, I
 	EXTRACT_PARAM_OR_FAIL(p_child, rp_child);
 	ERR_FAIL_COND_MSG(p_child == this, vformat("Can't add child '%s' to itself.", p_child->get_name())); // adding to itself!
 	ERR_FAIL_COND_MSG(p_child->data.parent, vformat("Can't add child '%s' to '%s', already has a parent '%s'.", p_child->get_name(), get_name(), p_child->data.parent->get_name())); //Fail if node has a parent
+	ERR_FAIL_COND_MSG(p_child->_is_vextoria_instance_node() && p_child->data.vextoria_parent_locked, vformat("The Parent property of Vextoria Instance '%s' is locked.", p_child->get_name()));
 #ifdef DEBUG_ENABLED
 	ERR_FAIL_COND_MSG(p_child->is_ancestor_of(this), vformat("Can't add child '%s' to '%s' as it would result in a cyclic dependency since '%s' is already a parent of '%s'.", p_child->get_name(), get_name(), p_child->get_name(), get_name()));
 #endif
@@ -1750,6 +1751,7 @@ void Node::remove_child(RequiredParam<Node> rp_child) {
 	EXTRACT_PARAM_OR_FAIL(p_child, rp_child);
 	ERR_FAIL_COND_MSG(data.blocked > 0, "Parent node is busy adding/removing children, `remove_child()` can't be called at this time. Consider using `remove_child.call_deferred(child)` instead.");
 	ERR_FAIL_COND(p_child->data.parent != this);
+	ERR_FAIL_COND_MSG(p_child->_is_vextoria_instance_node() && p_child->data.vextoria_parent_locked, vformat("The Parent property of Vextoria Instance '%s' is locked.", p_child->get_name()));
 
 	/**
 	 *  Do not change the data.internal_children*cache counters here.
@@ -2062,6 +2064,7 @@ void Node::reparent(RequiredParam<Node> rp_parent, bool p_keep_global_transform)
 	if (p_parent == data.parent) {
 		return;
 	}
+	ERR_FAIL_COND_MSG(_is_vextoria_instance_node() && data.vextoria_parent_locked, vformat("The Parent property of Vextoria Instance '%s' is locked.", get_name()));
 	Node *old_parent = data.parent;
 
 	bool preserve_owner = data.owner && (data.owner == p_parent || data.owner->is_ancestor_of(p_parent));
@@ -2109,6 +2112,11 @@ void Node::reparent(RequiredParam<Node> rp_parent, bool p_keep_global_transform)
 
 Node *Node::get_parent() const {
 	return data.parent;
+}
+
+bool Node::_is_vextoria_instance_node() const {
+	static const StringName vextoria_instance_meta("_vextoria_instance");
+	return has_meta(vextoria_instance_meta) && get_meta(vextoria_instance_meta).booleanize();
 }
 
 Node *Node::find_parent(const String &p_pattern) const {

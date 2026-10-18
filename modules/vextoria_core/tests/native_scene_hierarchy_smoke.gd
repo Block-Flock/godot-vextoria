@@ -66,8 +66,23 @@ func _initialize() -> void:
 	_assert(_is_instance_parent_locked(generic_locked_node), "generic Node-backed Instance did not retain ParentLocked")
 	_assert(not _can_set_instance_parent(generic_locked_node, second), "generic Node-backed ParentLocked Instance could be reparented")
 	_assert(not _set_instance_parent(generic_locked_node, null), "generic Node-backed ParentLocked Instance could be detached")
+	generic_locked_node.reparent(parent)
+	_assert(generic_locked_node.get_parent() == parent, "same-parent Node.reparent no-op was blocked by ParentLocked")
+	generic_locked_node.reparent(second)
+	_assert(generic_locked_node.get_parent() == parent, "raw Node.reparent bypassed ParentLocked")
+	parent.remove_child(generic_locked_node)
+	_assert(generic_locked_node.get_parent() == parent, "raw Node.remove_child bypassed ParentLocked")
 	_assert(_unlock_instance_parent(generic_locked_node), "generic Node-backed Instance could not clear ParentLocked")
 	_assert(_set_instance_parent(generic_locked_node, second), "unlocked generic Node-backed Instance could not be reparented")
+	var locked_detached_node := Node.new()
+	locked_detached_node.name = "LockedDetachedInstance"
+	locked_detached_node.set_meta("_vextoria_instance", true)
+	_assert(_lock_instance_parent(locked_detached_node), "detached Node-backed Instance did not accept ParentLocked")
+	second.add_child(locked_detached_node)
+	_assert(locked_detached_node.get_parent() == null, "raw Node.add_child bypassed ParentLocked on a detached Instance")
+	_assert(_unlock_instance_parent(locked_detached_node), "detached Node-backed Instance could not clear ParentLocked")
+	second.add_child(locked_detached_node)
+	_assert(locked_detached_node.get_parent() == second, "unlocked Node-backed Instance could not be attached")
 	for lockable_class in ["Folder", "Model", "Part"]:
 		var lockable_node := ClassDB.instantiate(lockable_class) as Node
 		_assert(lockable_node != null, "native %s class could not be instantiated for ParentLocked coverage" % lockable_class)
@@ -116,7 +131,7 @@ func _initialize() -> void:
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered child/parent queries, helper-node exclusion, ordered move, generic/native ParentLocked semantics, transactional attach/detach, reentrancy rejection, cycle rejection, clamp")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered child/parent queries, helper-node exclusion, ordered move, ParentLocked preflight and raw Node mutation enforcement, transactional attach/detach, reentrancy rejection, cycle rejection, clamp")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:
