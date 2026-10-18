@@ -141,6 +141,7 @@ class Part : public RigidBody3D {
 	bool material_registry_owned = false;
 	bool material_registry_opaque = true;
 	bool normal_maps_enabled = true;
+	void update_roblox2016_collision_routing();
 #ifdef TOOLS_ENABLED
 	Ref<Mesh> editor_pick_mesh;
 #endif

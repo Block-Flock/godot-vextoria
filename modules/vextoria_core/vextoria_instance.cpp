@@ -367,6 +367,7 @@ Part::Part() {
 			"vextoria/rendering/normal_maps_enabled", true);
 	try_resolve_material_asset(material_kind);
 	refresh_editor_pick_geometry();
+	update_roblox2016_collision_routing();
 }
 
 bool Part::is_locked() const {
@@ -458,6 +459,7 @@ void Part::set_color(const Color &p_color) {
 	}
 	const bool old_opaque = material_registry_opaque;
 	color = p_color;
+	update_roblox2016_collision_routing();
 	const bool new_opaque = color.a >= 0.975f;
 	if (material_registry_owned && old_opaque != new_opaque) {
 		if (!try_resolve_material_asset(material_kind)) {
@@ -909,6 +911,7 @@ void Part::set_anchored(bool p_anchored) {
 		return;
 	}
 	anchored = p_anchored;
+	update_roblox2016_collision_routing();
 	set_freeze_enabled(anchored || tool_freeze_reasons != 0);
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Anchored"));
 }
@@ -946,6 +949,7 @@ void Part::set_collision_layers(uint32_t p_collision_layers) {
 		return;
 	}
 	collision_layers = p_collision_layers;
+	update_roblox2016_collision_routing();
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("CollisionLayers"));
 }
 
@@ -954,7 +958,33 @@ void Part::set_authored_collision_mask(uint32_t p_collision_mask) {
 		return;
 	}
 	collision_mask = p_collision_mask;
+	update_roblox2016_collision_routing();
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("RobloxCollisionMask"));
+}
+
+void Part::update_roblox2016_collision_routing() {
+	// Roblox's authored default channel is routed into separate native static
+	// and dynamic channels. Camera clipping is derived from native transparency
+	// using the same threshold as the client compatibility facade.
+	constexpr uint32_t authored_default_layer = 1u;
+	constexpr uint32_t camera_clip_layer = 1u << 5;
+	constexpr uint32_t static_physics_layer = 1u << 30;
+	constexpr uint32_t dynamic_physics_layer = 1u << 31;
+
+	uint32_t effective_layers = collision_layers & ~(authored_default_layer | camera_clip_layer);
+	uint32_t effective_mask = collision_mask & ~authored_default_layer;
+	if (color.a > 0.5f) {
+		effective_layers |= camera_clip_layer;
+	}
+	if (anchored) {
+		effective_layers |= static_physics_layer;
+		effective_mask |= dynamic_physics_layer;
+	} else {
+		effective_layers |= dynamic_physics_layer;
+		effective_mask |= static_physics_layer | dynamic_physics_layer;
+	}
+	set_collision_layer(effective_layers);
+	set_collision_mask(effective_mask);
 }
 
 void Part::reset_builtin_geometry() {
