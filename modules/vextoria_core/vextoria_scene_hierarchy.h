@@ -22,6 +22,7 @@ public:
 	static Node *create_generic_instance();
 	static Node3D *create_generic_spatial_instance();
 	static Array get_instance_children(Node *p_parent);
+	static Array get_instance_descendants(Node *p_parent);
 	static Node *get_instance_parent(Node *p_node);
 	static bool can_set_instance_parent(Node *p_node, Node *p_parent);
 	static bool is_instance_parent_locked(Node *p_node);
