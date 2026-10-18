@@ -18,10 +18,10 @@ protected:
 	static void _bind_methods();
 
 public:
-	static bool select_node(int64_t p_owner_object_id, Node *p_node);
+	static bool select_node(int64_t p_owner_object_id, Node *p_selection_root, Node *p_node);
 	static bool deselect_node(int64_t p_owner_object_id, Node *p_node);
-	static bool has_node(int64_t p_owner_object_id, Node *p_node);
-	static Array get_selected_nodes(int64_t p_owner_object_id);
+	static bool has_node(int64_t p_owner_object_id, Node *p_selection_root, Node *p_node);
+	static Array get_selected_nodes(int64_t p_owner_object_id, Node *p_selection_root);
 	static void clear_selection(int64_t p_owner_object_id);
 	static void forget_owner(int64_t p_owner_object_id);
 };
