@@ -48,6 +48,9 @@ func _run() -> void:
 	excluded.add_child(excluded_child)
 	assert(explorer.call("get_item_for_node", excluded) == null, "excluded node leaked into Explorer")
 	assert(explorer.call("get_item_for_node", excluded_child) == null, "excluded descendant leaked into Explorer")
+	assert(explorer.call("is_node_excluded", excluded), "native Explorer did not identify excluded node")
+	assert(explorer.call("is_node_excluded", excluded_child), "native Explorer did not identify excluded ancestry")
+	assert(not explorer.call("is_node_excluded", model), "native Explorer incorrectly excluded a visible node")
 
 	part.name = "Red Door"
 	assert(part_item.get_text(0) == "Red Door", "native rename was not reflected")

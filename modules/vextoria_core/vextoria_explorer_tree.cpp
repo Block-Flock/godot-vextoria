@@ -40,6 +40,7 @@ void VextoriaExplorerTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_item_for_node", "node"), &VextoriaExplorerTree::get_item_for_node);
 	ClassDB::bind_method(D_METHOD("ensure_item_for_node", "node"), &VextoriaExplorerTree::ensure_item_for_node);
 	ClassDB::bind_method(D_METHOD("get_node_for_item", "item"), &VextoriaExplorerTree::get_node_for_item);
+	ClassDB::bind_method(D_METHOD("is_node_excluded", "node"), &VextoriaExplorerTree::is_node_excluded);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "source_root", PROPERTY_HINT_NODE_TYPE, "Node", PROPERTY_USAGE_NONE), "set_source_root", "get_source_root");
 	ADD_SIGNAL(MethodInfo("item_added", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::OBJECT, "item")));
 	ADD_SIGNAL(MethodInfo("item_removing", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::OBJECT, "item")));
@@ -106,6 +107,18 @@ TreeItem *VextoriaExplorerTree::ensure_item_for_node(Node *p_node) {
 Node *VextoriaExplorerTree::get_node_for_item(TreeItem *p_item) const {
 	Node *const *node = item_nodes.getptr(p_item);
 	return node ? *node : nullptr;
+}
+
+bool VextoriaExplorerTree::is_node_excluded(Node *p_node) const {
+	if (!p_node || !source_root || p_node == source_root || !source_root->is_ancestor_of(p_node)) {
+		return false;
+	}
+	for (Node *ancestor = p_node; ancestor && ancestor != source_root; ancestor = ancestor->get_parent()) {
+		if (ancestor->has_meta(SNAME("_vextoria_explorer_excluded"))) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void VextoriaExplorerTree::_add_subtree(Node *p_node, bool p_recurse) {
