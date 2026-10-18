@@ -32,7 +32,35 @@
 
 #include "core/object/callable_mp.h"
 #include "core/object/class_db.h"
+#include "scene/resources/texture.h"
 #include "scene/main/scene_tree.h"
+
+static Ref<Texture2D> _get_node_texture_meta(Node *p_node, const StringName &p_key) {
+	if (p_node == nullptr || !p_node->has_meta(p_key)) {
+		return Ref<Texture2D>();
+	}
+	Variant value = p_node->get_meta(p_key);
+	if (value.get_type() != Variant::OBJECT) {
+		return Ref<Texture2D>();
+	}
+	return Ref<Texture2D>(Object::cast_to<Texture2D>(value));
+}
+
+static void _sync_explorer_button(TreeItem *p_item, int p_id, bool p_enabled, const Ref<Texture2D> &p_icon, const String &p_tooltip) {
+	const int button_index = p_item->get_button_by_id(0, p_id);
+	if (!p_enabled || p_icon.is_null()) {
+		if (button_index >= 0) {
+			p_item->erase_button(0, button_index);
+		}
+		return;
+	}
+	if (button_index < 0) {
+		p_item->add_button(0, p_icon, p_id, false, p_tooltip);
+	} else {
+		p_item->set_button(0, button_index, p_icon);
+		p_item->set_button_tooltip_text(0, button_index, p_tooltip);
+	}
+}
 
 void VextoriaExplorerTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_source_root", "root"), &VextoriaExplorerTree::set_source_root);
@@ -40,6 +68,7 @@ void VextoriaExplorerTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_item_for_node", "node"), &VextoriaExplorerTree::get_item_for_node);
 	ClassDB::bind_method(D_METHOD("ensure_item_for_node", "node"), &VextoriaExplorerTree::ensure_item_for_node);
 	ClassDB::bind_method(D_METHOD("get_node_for_item", "item"), &VextoriaExplorerTree::get_node_for_item);
+	ClassDB::bind_method(D_METHOD("refresh_node_presentation", "node"), &VextoriaExplorerTree::refresh_node_presentation);
 	ClassDB::bind_method(D_METHOD("sync_item_name", "item"), &VextoriaExplorerTree::sync_item_name);
 	ClassDB::bind_method(D_METHOD("is_node_excluded", "node"), &VextoriaExplorerTree::is_node_excluded);
 	ClassDB::bind_method(D_METHOD("apply_search_filter", "query"), &VextoriaExplorerTree::apply_search_filter);
@@ -81,6 +110,7 @@ void VextoriaExplorerTree::set_source_root(Node *p_root) {
 		return;
 	}
 	_clear_items();
+	search_query = String();
 	source_root = p_root;
 	if (is_inside_tree() && source_root) {
 		_add_subtree(source_root);
@@ -109,6 +139,58 @@ TreeItem *VextoriaExplorerTree::ensure_item_for_node(Node *p_node) {
 Node *VextoriaExplorerTree::get_node_for_item(TreeItem *p_item) const {
 	Node *const *node = item_nodes.getptr(p_item);
 	return node ? *node : nullptr;
+}
+
+bool VextoriaExplorerTree::refresh_node_presentation(Node *p_node) {
+	TreeItem *item = get_item_for_node(p_node);
+	if (item == nullptr || p_node == nullptr) {
+		return false;
+	}
+
+	const bool first_presentation = !item->has_meta(SNAME("_vextoria_presentation_initialized"));
+	if (first_presentation && p_node != source_root) {
+		item->set_collapsed(true);
+	}
+
+	Ref<Texture2D> icon = _get_node_texture_meta(p_node, SNAME("_vextoria_explorer_icon"));
+	if (icon.is_valid()) {
+		item->set_icon(0, icon);
+	}
+	const bool renameable = p_node->has_meta(SNAME("_vextoria_explorer_renameable")) &&
+			p_node->get_meta(SNAME("_vextoria_explorer_renameable")).booleanize();
+	item->set_editable(0, renameable);
+
+	const bool model_non_editable = p_node->has_meta(SNAME("_vextoria_explorer_model_non_editable")) &&
+			p_node->get_meta(SNAME("_vextoria_explorer_model_non_editable")).booleanize();
+	const bool model_editable_color = p_node->has_meta(SNAME("_vextoria_explorer_model_editable_color")) &&
+			p_node->get_meta(SNAME("_vextoria_explorer_model_editable_color")).booleanize();
+	item->set_meta(SNAME("_model_non_editable"), model_non_editable);
+	if (model_editable_color) {
+		item->set_custom_color(0, Color("#FFBC58"));
+	} else {
+		item->clear_custom_color(0);
+	}
+	const bool force_invisible = item->has_meta(SNAME("_force_invisible")) &&
+			item->get_meta(SNAME("_force_invisible")).booleanize();
+	if (search_query.is_empty()) {
+		item->set_visible(!force_invisible && !model_non_editable);
+	}
+
+	const bool linked = p_node->has_meta(SNAME("_vextoria_explorer_linked")) &&
+			p_node->get_meta(SNAME("_vextoria_explorer_linked")).booleanize();
+	const String linked_tooltip = p_node->has_meta(SNAME("_vextoria_explorer_link_tooltip")) ?
+			String(p_node->get_meta(SNAME("_vextoria_explorer_link_tooltip"))) : String();
+	_sync_explorer_button(item, 1, linked, _get_node_texture_meta(p_node, SNAME("_vextoria_explorer_link_icon")), linked_tooltip);
+
+	const bool locked = p_node->has_meta(SNAME("_vextoria_explorer_locked")) &&
+			p_node->get_meta(SNAME("_vextoria_explorer_locked")).booleanize();
+	_sync_explorer_button(item, 2, locked, _get_node_texture_meta(p_node, SNAME("_vextoria_explorer_lock_icon")), "Locked");
+
+	item->set_meta(SNAME("_vextoria_presentation_initialized"), true);
+	if (!search_query.is_empty()) {
+		_apply_search_filter(get_root(), search_query);
+	}
+	return true;
 }
 
 void VextoriaExplorerTree::sync_item_name(TreeItem *p_item) {
@@ -173,7 +255,8 @@ Node *VextoriaExplorerTree::_apply_search_filter(TreeItem *p_item, const String 
 }
 
 Node *VextoriaExplorerTree::apply_search_filter(const String &p_query) {
-	return _apply_search_filter(get_root(), p_query.to_lower());
+	search_query = p_query.to_lower();
+	return _apply_search_filter(get_root(), search_query);
 }
 
 void VextoriaExplorerTree::_add_subtree(Node *p_node, bool p_recurse) {
@@ -201,6 +284,7 @@ void VextoriaExplorerTree::_add_subtree(Node *p_node, bool p_recurse) {
 		item->set_text(0, p_node->get_name());
 		node_items.insert(p_node, item);
 		item_nodes.insert(item, p_node);
+		refresh_node_presentation(p_node);
 		emit_signal(SNAME("item_added"), p_node, item);
 	}
 	if (p_recurse) {
