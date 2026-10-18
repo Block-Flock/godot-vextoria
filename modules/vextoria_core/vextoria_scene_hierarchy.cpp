@@ -6,6 +6,7 @@
 #include "core/object/class_db.h"
 #include "core/templates/hash_map.h"
 #include "scene/main/node.h"
+#include "vextoria_instance.h"
 
 #include <algorithm>
 #include <vector>
@@ -20,6 +21,19 @@ HashMap<ObjectID, ParentChangeState> active_parent_changes;
 
 bool is_vextoria_instance_node(Node *p_node) {
 	return p_node != nullptr && p_node->has_meta("_vextoria_instance") && p_node->get_meta("_vextoria_instance").booleanize();
+}
+
+VextoriaParentLockable *get_parent_lockable(Node *p_node) {
+	if (VextoriaInstance *instance = Object::cast_to<VextoriaInstance>(p_node)) {
+		return instance;
+	}
+	if (Model *model = Object::cast_to<Model>(p_node)) {
+		return model;
+	}
+	if (Part *part = Object::cast_to<Part>(p_node)) {
+		return part;
+	}
+	return nullptr;
 }
 
 std::vector<Node *> collect_instance_children(Node *p_parent) {
@@ -62,7 +76,45 @@ bool VextoriaSceneHierarchy::can_set_instance_parent(Node *p_node, Node *p_paren
 	if (p_parent != nullptr && !is_vextoria_instance_node(p_parent)) {
 		return false;
 	}
+	if (p_node->get_parent() == p_parent) {
+		return true;
+	}
+	if (is_instance_parent_locked(p_node)) {
+		return false;
+	}
 	return p_node != p_parent && (p_parent == nullptr || !p_node->is_ancestor_of(p_parent));
+}
+
+bool VextoriaSceneHierarchy::is_instance_parent_locked(Node *p_node) {
+	if (!is_vextoria_instance_node(p_node)) {
+		return false;
+	}
+	VextoriaParentLockable *lockable = get_parent_lockable(p_node);
+	return lockable != nullptr && lockable->is_parent_locked();
+}
+
+bool VextoriaSceneHierarchy::lock_instance_parent(Node *p_node) {
+	if (!is_vextoria_instance_node(p_node)) {
+		return false;
+	}
+	VextoriaParentLockable *lockable = get_parent_lockable(p_node);
+	if (lockable == nullptr) {
+		return false;
+	}
+	lockable->set_parent_locked(true);
+	return true;
+}
+
+bool VextoriaSceneHierarchy::unlock_instance_parent(Node *p_node) {
+	if (!is_vextoria_instance_node(p_node)) {
+		return false;
+	}
+	VextoriaParentLockable *lockable = get_parent_lockable(p_node);
+	if (lockable == nullptr) {
+		return false;
+	}
+	lockable->set_parent_locked(false);
+	return true;
 }
 
 int64_t VextoriaSceneHierarchy::get_instance_child_index(Node *p_node) {
@@ -194,6 +246,9 @@ void VextoriaSceneHierarchy::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_children", "parent"), &VextoriaSceneHierarchy::get_instance_children);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_parent", "node"), &VextoriaSceneHierarchy::get_instance_parent);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("can_set_instance_parent", "node", "parent"), &VextoriaSceneHierarchy::can_set_instance_parent);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("is_instance_parent_locked", "node"), &VextoriaSceneHierarchy::is_instance_parent_locked);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("lock_instance_parent", "node"), &VextoriaSceneHierarchy::lock_instance_parent);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("unlock_instance_parent", "node"), &VextoriaSceneHierarchy::unlock_instance_parent);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("begin_instance_parent_change", "node", "parent"), &VextoriaSceneHierarchy::begin_instance_parent_change);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("commit_instance_parent_change", "node", "parent"), &VextoriaSceneHierarchy::commit_instance_parent_change);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("end_instance_parent_change", "node"), &VextoriaSceneHierarchy::end_instance_parent_change);

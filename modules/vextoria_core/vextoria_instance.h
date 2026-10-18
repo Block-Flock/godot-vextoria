@@ -50,9 +50,20 @@ class StandardMaterial3D;
 class Material;
 class VextoriaPartRenderer;
 
+// ParentLocked is an internal Roblox Instance lifecycle guard, separate from
+// the Studio-facing edit Locked property.
+class VextoriaParentLockable {
+	bool parent_locked = false;
+
+public:
+	virtual ~VextoriaParentLockable() = default;
+	bool is_parent_locked() const { return parent_locked; }
+	void set_parent_locked(bool p_locked) { parent_locked = p_locked; }
+};
+
 // Non-spatial Roblox Instances (folders and scripts) belong in Godot's Node
 // tree without acquiring a transform or a viewport gizmo.
-class VextoriaInstance : public Node {
+class VextoriaInstance : public Node, public VextoriaParentLockable {
 	GDCLASS(VextoriaInstance, Node);
 
 	bool archivable = true;
@@ -74,7 +85,7 @@ public:
 
 // A Part is the physics body itself. Its visual and collision children are
 // internal Godot implementation details, not additional Vextoria Instances.
-class Part : public RigidBody3D {
+class Part : public RigidBody3D, public VextoriaParentLockable {
 	GDCLASS(Part, RigidBody3D);
 	friend class VextoriaPartRenderer;
 	ObjectID render_owner;
@@ -173,7 +184,7 @@ public:
 };
 
 // Roblox Model is a PVInstance: unlike Folder, it has a spatial frame.
-class Model : public Node3D {
+class Model : public Node3D, public VextoriaParentLockable {
 	GDCLASS(Model, Node3D);
 
 	bool archivable = true;

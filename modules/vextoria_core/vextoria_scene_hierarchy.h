@@ -21,6 +21,9 @@ public:
 	static Array get_instance_children(Node *p_parent);
 	static Node *get_instance_parent(Node *p_node);
 	static bool can_set_instance_parent(Node *p_node, Node *p_parent);
+	static bool is_instance_parent_locked(Node *p_node);
+	static bool lock_instance_parent(Node *p_node);
+	static bool unlock_instance_parent(Node *p_node);
 	static bool begin_instance_parent_change(Node *p_node, Node *p_parent);
 	static bool commit_instance_parent_change(Node *p_node, Node *p_parent);
 	static void end_instance_parent_change(Node *p_node);

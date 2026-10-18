@@ -152,13 +152,17 @@ preflight. The native `begin_instance_parent_change` /
 a per-Node reentrancy sentry across client lifecycle callbacks, permits one
 commit to the requested native parent, and rejects nested or mismatched
 mutations. The raw native setter permits only a same-parent no-op while that
-transaction is active. `Node::reparent()` emits `vextoria_reparented` once
+transaction is active. Native `VextoriaInstance`, `Model`, and `Part` carry a
+runtime ParentLocked state, separate from the Studio edit `Locked` state;
+preflight permits a same-parent no-op but rejects an actual attach/reparent/
+detach while the runtime lock is set. The lock API is exposed through
+`VextoriaSceneHierarchy`. `Node::reparent()` emits `vextoria_reparented` once
 after a successful final attach; the existing parent-change signal still
 reports the internal remove/add transitions. These are structural operations
 only: NetworkParent bookkeeping, Roblox lifecycle events, parent-lock and
-class-specific validation policy, descendant event ordering, temporary-
-container replication, and Luau callbacks remain client compatibility
-responsibilities.
+service/DataModel lock lifecycle wiring, class-specific validation policy,
+descendant event ordering, temporary-container replication, and Luau callbacks
+remain client compatibility responsibilities.
 
 Native `VextoriaInstance`, `Model`, and `Part` also expose
 `get_unique_sibling_name`. The fork resolves suffixes against tagged native

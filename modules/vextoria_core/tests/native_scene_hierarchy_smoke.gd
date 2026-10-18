@@ -58,6 +58,34 @@ func _initialize() -> void:
 	_assert(not _set_instance_parent(first, first), "self-parenting was accepted")
 	_assert(not _set_instance_parent(first, first_child), "cyclic reparent was accepted")
 	_assert(_set_instance_parent(first, parent), "native no-op parent assignment failed")
+	for lockable_class in ["Folder", "Model", "Part"]:
+		var lockable_node := ClassDB.instantiate(lockable_class) as Node
+		_assert(lockable_node != null, "native %s class could not be instantiated for ParentLocked coverage" % lockable_class)
+		if lockable_node != null:
+			lockable_node.set_meta("_vextoria_instance", true)
+			_assert(_lock_instance_parent(lockable_node), "native %s did not accept ParentLocked" % lockable_class)
+			_assert(_is_instance_parent_locked(lockable_node), "native %s ParentLocked state was not readable" % lockable_class)
+			_assert(_unlock_instance_parent(lockable_node), "native %s did not clear ParentLocked" % lockable_class)
+			lockable_node.free()
+	var locked_folder := ClassDB.instantiate("Folder") as Node
+	_assert(locked_folder != null, "native Folder class could not be instantiated for parent-lock coverage")
+	if locked_folder != null:
+		locked_folder.name = "ParentLockedFolder"
+		locked_folder.set_meta("_vextoria_instance", true)
+		parent.add_child(locked_folder)
+		locked_folder.call("set_locked", true)
+		_assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", locked_folder, second), "Studio edit Locked incorrectly blocked parent changes")
+		_assert(_lock_instance_parent(locked_folder), "native parent lock could not be enabled")
+		_assert(_is_instance_parent_locked(locked_folder), "native parent lock state was not readable")
+		_assert(locked_folder.call("is_locked"), "runtime ParentLocked corrupted the independent Studio edit Locked state")
+		_assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", locked_folder, parent), "same-parent no-op was blocked by ParentLocked")
+		_assert(not ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", locked_folder, second), "ParentLocked allowed reparenting")
+		_assert(not _set_instance_parent(locked_folder, second), "native setter bypassed ParentLocked")
+		_assert(not _set_instance_parent(locked_folder, null), "native setter detached a ParentLocked Instance")
+		_assert(_unlock_instance_parent(locked_folder), "native parent lock could not be disabled")
+		_assert(not _is_instance_parent_locked(locked_folder), "native parent lock remained set after unlock")
+		_assert(_set_instance_parent(locked_folder, second), "unlocked native Instance could not be reparented")
+		locked_folder.call("set_locked", false)
 	_assert(_begin_instance_parent_change(detached, parent), "native parent transaction did not begin")
 	_assert(not _begin_instance_parent_change(detached, null), "nested native parent transaction was accepted")
 	_assert(not _commit_instance_parent_change(detached, second), "native parent transaction accepted a different target")
@@ -78,7 +106,7 @@ func _initialize() -> void:
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered child/parent queries, helper-node exclusion, ordered move, transactional attach/detach, reentrancy rejection, cycle rejection, clamp")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered child/parent queries, helper-node exclusion, ordered move, ParentLocked semantics, transactional attach/detach, reentrancy rejection, cycle rejection, clamp")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:
@@ -122,6 +150,15 @@ func _commit_instance_parent_change(node: Node, parent: Node) -> bool:
 
 func _end_instance_parent_change(node: Node) -> void:
 	ClassDB.class_call_static("VextoriaSceneHierarchy", "end_instance_parent_change", node)
+
+func _is_instance_parent_locked(node: Node) -> bool:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "is_instance_parent_locked", node)
+
+func _lock_instance_parent(node: Node) -> bool:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "lock_instance_parent", node)
+
+func _unlock_instance_parent(node: Node) -> bool:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "unlock_instance_parent", node)
 
 func _assert(condition: bool, message: String) -> void:
 	if not condition:
