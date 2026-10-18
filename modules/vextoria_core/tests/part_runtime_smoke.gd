@@ -13,7 +13,9 @@ func _run() -> void:
 	part.name = "TestPart"
 	assert(part.is_in_group("_vextoria_native_parts"), "native Part did not register for engine rendering settings")
 	var authored_changes: Array[StringName] = []
+	var size_transitions: Array[Array] = []
 	part.connect("vextoria_property_changed", func(property: StringName) -> void: authored_changes.append(property))
+	part.connect("vextoria_size_changed", func(previous: Vector3, current: Vector3) -> void: size_transitions.append([previous, current]))
 	scene_root.add_child(part)
 	part.owner = scene_root
 	part.set("Size", Vector3(3, 2, 5))
@@ -24,6 +26,7 @@ func _run() -> void:
 	part.set("Anchored", true)
 	part.set("CanCollide", true)
 	assert(authored_changes == [&"Size", &"Color", &"Anchored"], "unchanged native properties generated duplicate notifications")
+	assert(size_transitions == [[Vector3(4, 1, 2), Vector3(3, 2, 5)]], "native Size changes must report the exact previous and current values once")
 	part.set("Locked", true)
 	assert(part.freeze, "Anchored must freeze the native body")
 	assert(part.has_meta("_edit_lock_") and part.get("Locked"), "Locked must share Godot's editor lock state")

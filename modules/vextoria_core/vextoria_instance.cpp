@@ -437,6 +437,7 @@ void Part::set_size(const Vector3 &p_size) {
 	if (size == p_size) {
 		return;
 	}
+	const Vector3 previous_size = size;
 	size = p_size;
 	box_mesh->set_size(size);
 	box_shape->set_size(size);
@@ -448,6 +449,7 @@ void Part::set_size(const Vector3 &p_size) {
 	}
 	refresh_editor_pick_geometry();
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Size"));
+	emit_signal(SNAME("vextoria_size_changed"), previous_size, size);
 }
 
 void Part::set_color(const Color &p_color) {
@@ -1079,6 +1081,7 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_appearance_material"), &Part::get_appearance_material);
 	ClassDB::bind_method(D_METHOD("set_appearance_material", "material"), &Part::set_appearance_material);
 	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
+	ADD_SIGNAL(MethodInfo("vextoria_size_changed", PropertyInfo(Variant::VECTOR3, "previous"), PropertyInfo(Variant::VECTOR3, "current")));
 	ADD_SIGNAL(MethodInfo("vextoria_instance_property_changed",
 			PropertyInfo(Variant::STRING_NAME, "property"),
 			PropertyInfo(Variant::NIL, "previous", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT),
