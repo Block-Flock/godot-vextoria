@@ -72,6 +72,27 @@ public:
 	void reparent(RequiredParam<Node> p_parent, bool p_keep_global_transform = true) override;
 };
 
+// Spatial Roblox Instances use Godot's Node3D transform authority directly.
+// This concrete native base remains internal to the runtime; Model is the
+// user-facing native class and generic spatial proxies are created by factory.
+class VextoriaSpatialInstance : public Node3D {
+	GDCLASS(VextoriaSpatialInstance, Node3D);
+
+	bool archivable = true;
+
+protected:
+	static void _bind_methods();
+
+public:
+	String get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const;
+	bool is_archivable() const { return archivable; }
+	void set_archivable(bool p_archivable);
+	PackedStringArray get_tags() const;
+	void set_tags(const PackedStringArray &p_tags);
+	bool is_locked() const;
+	void set_locked(bool p_locked);
+};
+
 // A Part is the physics body itself. Its visual and collision children are
 // internal Godot implementation details, not additional Vextoria Instances.
 class Part : public RigidBody3D {
@@ -173,22 +194,13 @@ public:
 };
 
 // Roblox Model is a PVInstance: unlike Folder, it has a spatial frame.
-class Model : public Node3D {
-	GDCLASS(Model, Node3D);
-
-	bool archivable = true;
+class Model : public VextoriaSpatialInstance {
+	GDCLASS(Model, VextoriaSpatialInstance);
 
 protected:
 	static void _bind_methods();
 
 public:
-	String get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const;
-	bool is_archivable() const { return archivable; }
-	void set_archivable(bool p_archivable);
-	PackedStringArray get_tags() const;
-	void set_tags(const PackedStringArray &p_tags);
-	bool is_locked() const;
-	void set_locked(bool p_locked);
 };
 
 class Folder : public VextoriaInstance {

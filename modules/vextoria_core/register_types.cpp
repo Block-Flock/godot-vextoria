@@ -70,6 +70,7 @@ void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 	// Instances, but it is an implementation type rather than a CreateDialog
 	// entry. Folder and VextoriaScript remain the user-facing native subclasses.
 	GDREGISTER_INTERNAL_CLASS(VextoriaInstance);
+	GDREGISTER_INTERNAL_CLASS(VextoriaSpatialInstance);
 	GDREGISTER_CLASS(Part);
 	// AppearanceMaterial is an optional authored override. The default Part
 	// derives its material from the registry; do not retain that live GPU

@@ -7,6 +7,7 @@
 #include "core/object/object.h"
 
 class Node;
+class Node3D;
 
 // Roblox Instance ordering is the order of marked Instance Nodes, not the
 // raw Godot child index (a Godot parent may also own private helper Nodes).
@@ -19,6 +20,7 @@ protected:
 
 public:
 	static Node *create_generic_instance();
+	static Node3D *create_generic_spatial_instance();
 	static Array get_instance_children(Node *p_parent);
 	static Node *get_instance_parent(Node *p_node);
 	static bool can_set_instance_parent(Node *p_node, Node *p_parent);

@@ -13,6 +13,12 @@ precedence; non-Instance network objects retain ordinary Nodes. Specialized
 spatial compatibility proxies and their remaining managed behaviors are still
 transitional and are not covered by this generic base cutover.
 
+`VextoriaSpatialInstance` is the corresponding internal `Node3D` base for
+generic spatial Instances. The native `Model` class now derives from it, and
+`VextoriaSceneHierarchy.create_generic_spatial_instance()` constructs the
+fallback proxy used by `Dynamic`. Both implementation bases remain hidden
+from CreateDialog; specialized spatial classes keep their own node/scene paths.
+
 `Part` is a `RigidBody3D` with internal mesh and collision children. Those
 children are not independent Vextoria objects and are not serialized; a
 reopened `Part` reconstructs them from its native `Size` and `Color` properties.

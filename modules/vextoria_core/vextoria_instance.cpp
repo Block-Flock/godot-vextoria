@@ -224,27 +224,11 @@ void VextoriaInstance::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 }
 
-bool Model::is_locked() const {
-	return has_meta("_edit_lock_");
+String VextoriaSpatialInstance::get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const {
+	return resolve_unique_instance_sibling_name(this, p_sibling_container, p_requested_name, p_reserved_names);
 }
 
-PackedStringArray Model::get_tags() const {
-	return get_vextoria_tags(this);
-}
-
-void Model::set_tags(const PackedStringArray &p_tags) {
-	set_vextoria_tags(this, p_tags);
-}
-
-void Model::set_locked(bool p_locked) {
-	if (p_locked) {
-		set_meta("_edit_lock_", true);
-	} else if (has_meta("_edit_lock_")) {
-		remove_meta("_edit_lock_");
-	}
-}
-
-void Model::set_archivable(bool p_archivable) {
+void VextoriaSpatialInstance::set_archivable(bool p_archivable) {
 	if (archivable == p_archivable) {
 		return;
 	}
@@ -254,18 +238,34 @@ void Model::set_archivable(bool p_archivable) {
 	emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Archivable"), old_archivable, p_archivable);
 }
 
-String Model::get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const {
-	return resolve_unique_instance_sibling_name(this, p_sibling_container, p_requested_name, p_reserved_names);
+PackedStringArray VextoriaSpatialInstance::get_tags() const {
+	return get_vextoria_tags(this);
 }
 
-void Model::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("get_unique_sibling_name", "sibling_container", "requested_name", "reserved_names"), &Model::get_unique_sibling_name);
-	ClassDB::bind_method(D_METHOD("is_archivable"), &Model::is_archivable);
-	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &Model::set_archivable);
-	ClassDB::bind_method(D_METHOD("get_tags"), &Model::get_tags);
-	ClassDB::bind_method(D_METHOD("set_tags", "tags"), &Model::set_tags);
-	ClassDB::bind_method(D_METHOD("is_locked"), &Model::is_locked);
-	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &Model::set_locked);
+void VextoriaSpatialInstance::set_tags(const PackedStringArray &p_tags) {
+	set_vextoria_tags(this, p_tags);
+}
+
+bool VextoriaSpatialInstance::is_locked() const {
+	return has_meta("_edit_lock_");
+}
+
+void VextoriaSpatialInstance::set_locked(bool p_locked) {
+	if (p_locked) {
+		set_meta("_edit_lock_", true);
+	} else if (has_meta("_edit_lock_")) {
+		remove_meta("_edit_lock_");
+	}
+}
+
+void VextoriaSpatialInstance::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_unique_sibling_name", "sibling_container", "requested_name", "reserved_names"), &VextoriaSpatialInstance::get_unique_sibling_name);
+	ClassDB::bind_method(D_METHOD("is_archivable"), &VextoriaSpatialInstance::is_archivable);
+	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &VextoriaSpatialInstance::set_archivable);
+	ClassDB::bind_method(D_METHOD("get_tags"), &VextoriaSpatialInstance::get_tags);
+	ClassDB::bind_method(D_METHOD("set_tags", "tags"), &VextoriaSpatialInstance::set_tags);
+	ClassDB::bind_method(D_METHOD("is_locked"), &VextoriaSpatialInstance::is_locked);
+	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &VextoriaSpatialInstance::set_locked);
 	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
 	ADD_SIGNAL(MethodInfo("vextoria_instance_property_changed",
 			PropertyInfo(Variant::STRING_NAME, "property"),
@@ -274,6 +274,9 @@ void Model::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "Tags"), "set_tags", "get_tags");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
+}
+
+void Model::_bind_methods() {
 }
 
 Part::Part() {

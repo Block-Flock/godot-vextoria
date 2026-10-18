@@ -9,9 +9,20 @@ func _initialize() -> void:
 		"native hierarchy factory did not create the generic Vextoria Instance base")
 	_assert(not ClassDB.can_instantiate("VextoriaInstance"),
 		"generic Vextoria implementation base leaked into Godot's public CreateDialog class list")
+	var generic_spatial := ClassDB.class_call_static(
+		"VextoriaSceneHierarchy", "create_generic_spatial_instance") as Node3D
+	_assert(generic_spatial != null and generic_spatial.get_class() == "VextoriaSpatialInstance",
+		"native hierarchy factory did not create the generic spatial Vextoria Instance base")
+	_assert(not ClassDB.can_instantiate("VextoriaSpatialInstance"),
+		"generic spatial implementation base leaked into Godot's public CreateDialog class list")
+	_assert(ClassDB.is_parent_class("Model", "VextoriaSpatialInstance"),
+		"native Model does not inherit the shared spatial Instance base")
 	if generic_instance != null:
 		generic_instance.set_meta("_vextoria_instance", true)
 		root.add_child(generic_instance)
+	if generic_spatial != null:
+		generic_spatial.set_meta("_vextoria_instance", true)
+		root.add_child(generic_spatial)
 
 	var parent := Node.new()
 	parent.name = "InstanceParent"
@@ -141,7 +152,7 @@ func _initialize() -> void:
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: generic native Instance factory, hidden implementation base, filtered child/parent queries, ParentLocked raw mutation enforcement, transactional attach/detach, cycles and ordering")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: generic native Instance and spatial Instance factories, hidden implementation bases, native Model inheritance, filtered child/parent queries, ParentLocked raw mutation enforcement, transactional attach/detach, cycles and ordering")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:
