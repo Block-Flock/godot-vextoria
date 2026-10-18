@@ -105,6 +105,7 @@ private:
 	bool custom_center_of_mass = false;
 	bool custom_integrator = false;
 	bool has_point_gravity = false;
+	bool ccd_requested = false;
 
 	virtual JPH::BroadPhaseLayer _get_broad_phase_layer() const override;
 	virtual JPH::ObjectLayer _get_object_layer() const override;
@@ -135,6 +136,7 @@ private:
 	void _update_joint_constraints();
 	void _update_possible_kinematic_contacts();
 	void _update_sleep_allowed();
+	void _update_ccd_motion_quality();
 
 	void _destroy_joint_constraints();
 

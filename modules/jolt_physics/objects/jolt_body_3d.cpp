@@ -42,6 +42,14 @@
 #include "jolt_physics_direct_body_state_3d.h"
 #include "jolt_soft_body_3d.h"
 
+static bool jolt_shape_supports_linear_cast(const JPH::Shape *p_shape) {
+	return p_shape != nullptr && p_shape->GetInnerRadius() > 0.0f;
+}
+
+static void warn_unsupported_ccd_shape() {
+	WARN_PRINT_ONCE("Jolt CCD was requested for a body shape without a positive inner radius; using discrete motion quality to avoid unsafe linear casts.");
+}
+
 JPH::BroadPhaseLayer JoltBody3D::_get_broad_phase_layer() const {
 	switch (mode) {
 		case PhysicsServer3D::BODY_MODE_STATIC: {
@@ -107,6 +115,10 @@ void JoltBody3D::_add_to_space() {
 	jolt_settings->mAngularDamping = 0.0f;
 	jolt_settings->mMaxLinearVelocity = JoltProjectSettings::max_linear_velocity;
 	jolt_settings->mMaxAngularVelocity = JoltProjectSettings::max_angular_velocity;
+	jolt_settings->mMotionQuality = ccd_requested && jolt_shape_supports_linear_cast(jolt_shape) ? JPH::EMotionQuality::LinearCast : JPH::EMotionQuality::Discrete;
+	if (ccd_requested && !jolt_shape_supports_linear_cast(jolt_shape)) {
+		warn_unsupported_ccd_shape();
+	}
 
 	if (JoltProjectSettings::use_enhanced_internal_edge_removal_for_bodies) {
 		jolt_settings->mEnhancedInternalEdgeRemoval = true;
@@ -428,6 +440,7 @@ void JoltBody3D::_mode_changed() {
 
 void JoltBody3D::_shapes_committed() {
 	JoltShapedObject3D::_shapes_committed();
+	_update_ccd_motion_quality();
 
 	_update_mass_properties();
 	_update_joint_constraints();
@@ -1182,13 +1195,28 @@ bool JoltBody3D::is_ccd_enabled() const {
 	}
 }
 
+void JoltBody3D::_update_ccd_motion_quality() {
+	if (!in_space()) {
+		return;
+	}
+
+	const JPH::Shape *shape = jolt_body->GetShape();
+	const bool can_use_linear_cast = jolt_shape_supports_linear_cast(shape);
+	if (ccd_requested && !can_use_linear_cast) {
+		warn_unsupported_ccd_shape();
+	}
+
+	const JPH::EMotionQuality motion_quality = ccd_requested && can_use_linear_cast ? JPH::EMotionQuality::LinearCast : JPH::EMotionQuality::Discrete;
+	space->get_body_iface().SetMotionQuality(jolt_body->GetID(), motion_quality);
+}
+
 void JoltBody3D::set_ccd_enabled(bool p_enabled) {
-	const JPH::EMotionQuality motion_quality = p_enabled ? JPH::EMotionQuality::LinearCast : JPH::EMotionQuality::Discrete;
+	ccd_requested = p_enabled;
 
 	if (!in_space()) {
-		jolt_settings->mMotionQuality = motion_quality;
+		jolt_settings->mMotionQuality = p_enabled ? JPH::EMotionQuality::LinearCast : JPH::EMotionQuality::Discrete;
 	} else {
-		space->get_body_iface().SetMotionQuality(jolt_body->GetID(), motion_quality);
+		_update_ccd_motion_quality();
 	}
 }
 
