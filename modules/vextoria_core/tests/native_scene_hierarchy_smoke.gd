@@ -35,6 +35,8 @@ func _initialize() -> void:
 	_assert_index(third, 2)
 	_assert_index(helper, -1)
 	_assert(_instance_names_from_api(parent) == ["First", "Second", "Third"], "native child API included helpers or changed order")
+	_assert(_instance_parent_from_api(first) == parent, "native parent API missed the marked SceneTree parent")
+	_assert(_instance_parent_from_api(helper) == null, "native parent API accepted an unmarked node")
 	_assert(_move_instance_child(third, 0), "native Instance reorder returned false")
 	_assert_index(third, 0)
 	_assert_index(first, 1)
@@ -55,6 +57,7 @@ func _initialize() -> void:
 	_assert(_set_instance_parent(detached, parent), "detached Instance attach failed")
 	_assert(_set_instance_parent(detached, null), "native Instance detach failed")
 	_assert(detached.get_parent() == null, "native Instance detach left a Godot parent")
+	_assert(_instance_parent_from_api(detached) == null, "native parent API retained a detached parent")
 	_assert_index(detached, -1)
 	_assert(_set_instance_parent(detached, parent), "detached Instance reattach failed")
 	_assert(_instance_names_from_api(parent) == ["Third", "Second", "First", "Detached"], "native child API omitted attached Instance")
@@ -63,7 +66,7 @@ func _initialize() -> void:
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered-index, helper-node exclusion, ordered move, native parent attach/detach, cycle rejection, clamp")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered child/parent queries, helper-node exclusion, ordered move, native attach/detach, cycle rejection, clamp")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:
@@ -79,6 +82,9 @@ func _instance_names_from_api(parent: Node) -> Array[String]:
 	for child: Node in children:
 		result.append(child.name)
 	return result
+
+func _instance_parent_from_api(node: Node) -> Node:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "get_instance_parent", node)
 
 func _assert_index(node: Node, expected: int) -> void:
 	_assert(_get_instance_child_index(node) == expected,

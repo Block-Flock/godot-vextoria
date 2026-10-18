@@ -138,11 +138,12 @@ the item does not attach to the wrong branch.
 
 `VextoriaSceneHierarchy` owns the native Roblox-Instance sibling-order bridge.
 Its child-enumeration API returns direct child Nodes marked
-`_vextoria_instance` in native Godot order. Its filtered index counts only
+`_vextoria_instance` in native Godot order, and its parent query returns the
+marked native parent for an Instance Node. Its filtered index counts only
 those children, and its reorder operation moves within that filtered
 sequence without treating private Godot helper Nodes as Instances. This is the
-engine source used for Roblox-facing `Instance.GetChildren()` and `Index`; the
-managed child list is retained only for detached/headless compatibility
+engine source used for Roblox-facing `Instance.Parent`, `GetChildren()`, and
+`Index`; the managed child list is retained only for non-native compatibility
 objects. Its `set_instance_parent` operation validates marked Instance nodes,
 rejects self/cyclic parenting, and performs native attach, reparent, or detach
 through Godot's SceneTree. `Node::reparent()` emits `vextoria_reparented` once

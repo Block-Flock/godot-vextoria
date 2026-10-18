@@ -18,6 +18,7 @@ protected:
 
 public:
 	static Array get_instance_children(Node *p_parent);
+	static Node *get_instance_parent(Node *p_node);
 	static int64_t get_instance_child_index(Node *p_node);
 	static bool move_instance_child(Node *p_node, int64_t p_index);
 	static bool set_instance_parent(Node *p_node, Node *p_parent);
