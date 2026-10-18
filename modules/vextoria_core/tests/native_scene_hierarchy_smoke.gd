@@ -33,28 +33,28 @@ func _initialize() -> void:
 	_assert_index(second, 1)
 	_assert_index(third, 2)
 	_assert_index(helper, -1)
-	_assert(VextoriaSceneHierarchy.move_instance_child(third, 0), "native Instance reorder returned false")
+	_assert(_move_instance_child(third, 0), "native Instance reorder returned false")
 	_assert_index(third, 0)
 	_assert_index(first, 1)
 	_assert_index(second, 2)
 	_assert(helper.get_index() == 2, "unmarked helper relative order changed unexpectedly")
 	_assert(_instance_names(parent) == ["Third", "First", "Second"], "filtered Instance order did not match native reorder")
-	_assert(VextoriaSceneHierarchy.move_instance_child(second, 1), "second native Instance reorder returned false")
+	_assert(_move_instance_child(second, 1), "second native Instance reorder returned false")
 	_assert(_instance_names(parent) == ["Third", "Second", "First"], "middle Instance reorder produced the wrong sequence")
-	_assert(VextoriaSceneHierarchy.move_instance_child(first, 99), "clamped native Instance reorder returned false")
+	_assert(_move_instance_child(first, 99), "clamped native Instance reorder returned false")
 	_assert_index(first, 2)
 	_assert(_instance_names(parent) == ["Third", "Second", "First"], "out-of-range index was not clamped")
-	_assert(not VextoriaSceneHierarchy.move_instance_child(helper, 0), "unmarked helper was accepted as an Instance")
-	_assert(not VextoriaSceneHierarchy.set_instance_parent(helper, second), "unmarked child was accepted by native parent setter")
-	_assert(not VextoriaSceneHierarchy.set_instance_parent(first, helper), "unmarked parent was accepted by native parent setter")
-	_assert(not VextoriaSceneHierarchy.set_instance_parent(first, first), "self-parenting was accepted")
-	_assert(not VextoriaSceneHierarchy.set_instance_parent(first, first_child), "cyclic reparent was accepted")
-	_assert(VextoriaSceneHierarchy.set_instance_parent(first, parent), "native no-op parent assignment failed")
-	_assert(VextoriaSceneHierarchy.set_instance_parent(detached, parent), "detached Instance attach failed")
-	_assert(VextoriaSceneHierarchy.set_instance_parent(detached, null), "native Instance detach failed")
+	_assert(not _move_instance_child(helper, 0), "unmarked helper was accepted as an Instance")
+	_assert(not _set_instance_parent(helper, second), "unmarked child was accepted by native parent setter")
+	_assert(not _set_instance_parent(first, helper), "unmarked parent was accepted by native parent setter")
+	_assert(not _set_instance_parent(first, first), "self-parenting was accepted")
+	_assert(not _set_instance_parent(first, first_child), "cyclic reparent was accepted")
+	_assert(_set_instance_parent(first, parent), "native no-op parent assignment failed")
+	_assert(_set_instance_parent(detached, parent), "detached Instance attach failed")
+	_assert(_set_instance_parent(detached, null), "native Instance detach failed")
 	_assert(detached.get_parent() == null, "native Instance detach left a Godot parent")
 	_assert_index(detached, -1)
-	_assert(VextoriaSceneHierarchy.set_instance_parent(detached, parent), "detached Instance reattach failed")
+	_assert(_set_instance_parent(detached, parent), "detached Instance reattach failed")
 
 	parent.free()
 	if failed:
@@ -71,8 +71,17 @@ func _instance_names(parent: Node) -> Array[String]:
 	return result
 
 func _assert_index(node: Node, expected: int) -> void:
-	_assert(VextoriaSceneHierarchy.get_instance_child_index(node) == expected,
+	_assert(_get_instance_child_index(node) == expected,
 		"unexpected filtered child index for %s" % node.name)
+
+func _get_instance_child_index(node: Node) -> int:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "get_instance_child_index", node)
+
+func _move_instance_child(node: Node, index: int) -> bool:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "move_instance_child", node, index)
+
+func _set_instance_parent(node: Node, parent: Node) -> bool:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "set_instance_parent", node, parent)
 
 func _assert(condition: bool, message: String) -> void:
 	if not condition:
