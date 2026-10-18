@@ -9,6 +9,15 @@ children are not independent Vextoria objects and are not serialized; a
 reopened `Part` reconstructs them from its native `Size` and `Color` properties.
 `Anchored` freezes the body and `CanCollide` disables its shape without
 destroying the body. This preserves the same physics identity across edits.
+Native Part also owns independent transient Tool freeze reasons: storage (0)
+and held assembly (1). Clearing storage after parenting into a character must
+not clear held ownership. Effective freeze is authored Anchored OR either
+runtime reason; changing Anchored also respects those owners. These reasons
+are not serialized, and the inherited effective `freeze` property is excluded
+from storage so duplication/reopen cannot turn a temporarily held Part into a
+permanently frozen authored object. The client integration gate exercises
+reason overlap, Anchored edits, and duplication separately from live Tool
+equip/unequip tests.
 `Locked` reads and writes Godot's `_edit_lock_` state, so the Inspector and
 viewport lock action cannot disagree.
 The editor registers a native Part gizmo with Godot's Node3DEditor. Its picking

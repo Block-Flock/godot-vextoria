@@ -83,6 +83,8 @@ class Part : public RigidBody3D {
 	Color color = Color(0.639216, 0.635294, 0.647059);
 	bool archivable = true;
 	bool anchored = false;
+	// Independent transient owners; neither rewrites authored Anchored state.
+	uint8_t tool_freeze_reasons = 0;
 	bool can_collide = true;
 	MeshInstance3D *visual = nullptr;
 	CollisionShape3D *collision = nullptr;
@@ -145,6 +147,8 @@ public:
 	void set_locked(bool p_locked);
 	bool is_anchored() const { return anchored; }
 	void set_anchored(bool p_anchored);
+	void set_tool_freeze_reason(int p_reason, bool p_active);
+	bool is_tool_freeze_reason_active(int p_reason) const;
 	bool get_can_collide() const { return can_collide; }
 	void set_can_collide(bool p_can_collide);
 	// Restore the native box geometry after a gameplay Part switches back from

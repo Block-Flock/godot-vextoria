@@ -608,6 +608,11 @@ Ref<Material> Part::get_appearance_material() const {
 }
 
 void Part::_validate_property(PropertyInfo &p_property) const {
+	if (p_property.name == SNAME("freeze")) {
+		// Native runtime owners can freeze an authored unanchored Part. Persist
+		// Anchored, not this temporary effective physics state, on clone/save.
+		p_property.usage &= ~PROPERTY_USAGE_STORAGE;
+	}
 	if (registry_shape_mesh.is_valid() &&
 			(p_property.name == SNAME("GeometryMesh") || p_property.name == SNAME("GeometryCollision"))) {
 		// These resources are derived from Shape. Saving them as overrides would
@@ -674,8 +679,24 @@ void Part::set_anchored(bool p_anchored) {
 		return;
 	}
 	anchored = p_anchored;
-	set_freeze_enabled(anchored);
+	set_freeze_enabled(anchored || tool_freeze_reasons != 0);
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Anchored"));
+}
+
+void Part::set_tool_freeze_reason(int p_reason, bool p_active) {
+	ERR_FAIL_INDEX(p_reason, 2);
+	const uint8_t flag = uint8_t(1u << p_reason);
+	const uint8_t next = p_active ? (tool_freeze_reasons | flag) : (tool_freeze_reasons & ~flag);
+	if (next == tool_freeze_reasons) {
+		return;
+	}
+	tool_freeze_reasons = next;
+	set_freeze_enabled(anchored || tool_freeze_reasons != 0);
+}
+
+bool Part::is_tool_freeze_reason_active(int p_reason) const {
+	ERR_FAIL_INDEX_V(p_reason, 2, false);
+	return (tool_freeze_reasons & (1u << p_reason)) != 0;
 }
 
 void Part::set_can_collide(bool p_can_collide) {
@@ -806,6 +827,10 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &Part::set_locked);
 	ClassDB::bind_method(D_METHOD("is_anchored"), &Part::is_anchored);
 	ClassDB::bind_method(D_METHOD("set_anchored", "anchored"), &Part::set_anchored);
+	ClassDB::bind_method(D_METHOD("set_tool_freeze_reason", "reason", "active"), &Part::set_tool_freeze_reason);
+	ClassDB::bind_method(D_METHOD("is_tool_freeze_reason_active", "reason"), &Part::is_tool_freeze_reason_active);
+	ClassDB::bind_integer_constant(get_class_static(), "ToolFreezeReason", "TOOL_FREEZE_STORAGE", 0);
+	ClassDB::bind_integer_constant(get_class_static(), "ToolFreezeReason", "TOOL_FREEZE_HELD", 1);
 	ClassDB::bind_method(D_METHOD("get_can_collide"), &Part::get_can_collide);
 	ClassDB::bind_method(D_METHOD("set_can_collide", "can_collide"), &Part::set_can_collide);
 	ClassDB::bind_method(D_METHOD("reset_builtin_geometry"), &Part::reset_builtin_geometry);
