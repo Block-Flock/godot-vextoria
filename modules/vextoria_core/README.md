@@ -169,12 +169,20 @@ and applies authored weld-relative frames to live Godot `Node3D` members.
 Members are retained as weak Godot `ObjectID` values so deletion cannot leave
 stale native pointers in the hot path. The existing C# compatibility facade
 prefers these fork classes and keeps the extension implementation as a
-transitional fallback for non-Vextoria Godot builds. Backpack/equip state,
-script events, physics lifecycle, and replication remain managed and are not
-claimed as migrated by these classes.
+transitional fallback for non-Vextoria Godot builds. The fork-native
+`VextoriaRoblox2016ToolStateMachine` is authoritative for the six ordered
+backend states and reentrant transition generations, indexed by each Tool's
+Godot ObjectID and explicitly erased during `PreDelete`; the managed
+compatibility layer still resolves Roblox hierarchy prerequisites and
+dispatches the corresponding lifecycle effects/signals. Script events,
+physics lifecycle, and replication remain managed and are not claimed as
+migrated by these classes.
 
 Smoke coverage:
 
+- `tests/native_tool_state_machine_smoke.gd`: all 32 prerequisite combinations,
+  ordered equip/unequip rungs, stale/reentrant transition rejection, invalid
+  state targets, and explicit ObjectID cleanup.
 - `tests/part_runtime_smoke.gd`: native physics identity, mesh and collision
   changes, toggles, save/reopen.
 - `tests/editor_slice_smoke.gd`: real Godot CreateDialog/SceneTreeDock,
