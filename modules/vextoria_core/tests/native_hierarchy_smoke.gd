@@ -35,6 +35,9 @@ func _run() -> void:
 	var folder: Node = ClassDB.instantiate("Folder")
 	folder.name = "Details"
 	assert(folder.has_signal("vextoria_parent_changed"), "native Node must expose the Vextoria parent-change bridge")
+	assert(folder.get("Tags") == PackedStringArray(), "native Instance Tags must default to empty")
+	folder.set("Tags", PackedStringArray(["fixture", "folder"]))
+	assert(folder.get("Tags") == PackedStringArray(["fixture", "folder"]), "native Folder Tags property must round trip")
 	var parent_changes := ParentChangeCounter.new()
 	folder.connect("vextoria_parent_changed", Callable(parent_changes, "record"))
 	model.add_child(folder)
@@ -42,6 +45,7 @@ func _run() -> void:
 	folder.owner = scene_root
 	var script: Node = ClassDB.instantiate("VextoriaScript")
 	script.name = "LampScript"
+	script.set("Tags", PackedStringArray(["script-tag"]))
 	folder.add_child(script)
 	script.owner = scene_root
 	assert(script.has_signal("vextoria_property_changed"), "native Script must expose property synchronization")
@@ -54,6 +58,7 @@ func _run() -> void:
 	assert(property_changes.properties == [&"Source", &"Disabled"], "native Script edits must signal only actual Source/Disabled changes")
 	var part: RigidBody3D = ClassDB.instantiate("Part")
 	part.name = "Wall"
+	part.set("Tags", PackedStringArray(["part-tag"]))
 	script.add_child(part)
 	part.owner = scene_root
 	part.set("Anchored", true)
@@ -76,6 +81,7 @@ func _run() -> void:
 	assert(plain_part.get_parent_node_3d() == null, "ordinary Godot Nodes must not acquire Vextoria pass-through behavior")
 	var other_model: Node3D = ClassDB.instantiate("Model")
 	other_model.name = "OtherHouse"
+	other_model.set("Tags", PackedStringArray(["model-tag"]))
 	scene_root.add_child(other_model)
 	other_model.owner = scene_root
 	other_model.position = Vector3(20, -3, 6)
@@ -105,6 +111,10 @@ func _run() -> void:
 	assert(reopened_folder.get_class() == "Folder" and not reopened_folder is Node3D, "Folder must retain native non-spatial identity")
 	assert(reopened_script.get_class() == "VextoriaScript" and not reopened_script is Node3D, "Script must retain native non-spatial identity")
 	assert(reopened_part.get_class() == "Part" and reopened_part.get("Size") == Vector3(2, 3, 1), "Part must retain native physics identity")
+	assert(reopened_folder.get("Tags") == PackedStringArray(["fixture", "folder"]), "Folder Tags must survive save/reopen")
+	assert(reopened_script.get("Tags") == PackedStringArray(["script-tag"]), "Script Tags must survive save/reopen")
+	assert(reopened_part.get("Tags") == PackedStringArray(["part-tag"]), "Part Tags must survive save/reopen")
+	assert(reopened_root.get_node("OtherHouse").get("Tags") == PackedStringArray(["model-tag"]), "Model Tags must survive save/reopen")
 	assert(reopened_part.get_parent_node_3d() == reopened_model, "saved hierarchy must retain spatial pass-through")
 	assert(reopened_model.get("Locked") and reopened_script.get("Source") == "return true" and reopened_script.get("Disabled"), "native properties must survive save/reopen")
 	model.remove_child(folder)
@@ -113,5 +123,5 @@ func _run() -> void:
 	assert(parent_changes.count == 7 and folder.get_parent() == model, "re-adding a detached child must report the new parent")
 	assert(DirAccess.remove_absolute(ProjectSettings.globalize_path(path)) == OK, "smoke output cleanup failed")
 	reopened_root.free()
-	print("VEXTORIA_NATIVE_HIERARCHY_PASS: spatial Model, non-spatial Folder/Script, native script property signals, real Part, parent-change bridge, save/reopen")
+	print("VEXTORIA_NATIVE_HIERARCHY_PASS: spatial Model, non-spatial Folder/Script, native Tags and Script property signals, real Part, parent-change bridge, save/reopen")
 	quit(0)

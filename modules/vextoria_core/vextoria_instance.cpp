@@ -50,6 +50,27 @@
 #include "scene/resources/shader.h"
 #include "scene/resources/surface_tool.h"
 
+static const StringName &get_vextoria_tags_meta() {
+	static const StringName tags_meta = SNAME("VextoriaTags");
+	return tags_meta;
+}
+
+static PackedStringArray get_vextoria_tags(const Object *p_object) {
+	const StringName &tags_meta = get_vextoria_tags_meta();
+	if (p_object->has_meta(tags_meta)) {
+		return p_object->get_meta(tags_meta, PackedStringArray());
+	}
+	return PackedStringArray();
+}
+
+static void set_vextoria_tags(Object *p_object, const PackedStringArray &p_tags) {
+	if (get_vextoria_tags(p_object) == p_tags) {
+		return;
+	}
+	p_object->set_meta(get_vextoria_tags_meta(), p_tags);
+	p_object->emit_signal(SNAME("vextoria_property_changed"), SNAME("Tags"));
+}
+
 VextoriaInstance::VextoriaInstance() {
 	// Roblox Folder/Script have no CFrame, but spatial descendants must still
 	// inherit the nearest Model/Part frame. Node3D honors this opt-in marker.
@@ -101,6 +122,14 @@ bool VextoriaInstance::is_locked() const {
 	return has_meta("_edit_lock_");
 }
 
+PackedStringArray VextoriaInstance::get_tags() const {
+	return get_vextoria_tags(this);
+}
+
+void VextoriaInstance::set_tags(const PackedStringArray &p_tags) {
+	set_vextoria_tags(this, p_tags);
+}
+
 void VextoriaInstance::set_locked(bool p_locked) {
 	if (p_locked) {
 		set_meta("_edit_lock_", true);
@@ -112,15 +141,26 @@ void VextoriaInstance::set_locked(bool p_locked) {
 void VextoriaInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_archivable"), &VextoriaInstance::is_archivable);
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &VextoriaInstance::set_archivable);
+	ClassDB::bind_method(D_METHOD("get_tags"), &VextoriaInstance::get_tags);
+	ClassDB::bind_method(D_METHOD("set_tags", "tags"), &VextoriaInstance::set_tags);
 	ClassDB::bind_method(D_METHOD("is_locked"), &VextoriaInstance::is_locked);
 	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &VextoriaInstance::set_locked);
 	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
+	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "Tags"), "set_tags", "get_tags");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 }
 
 bool Model::is_locked() const {
 	return has_meta("_edit_lock_");
+}
+
+PackedStringArray Model::get_tags() const {
+	return get_vextoria_tags(this);
+}
+
+void Model::set_tags(const PackedStringArray &p_tags) {
+	set_vextoria_tags(this, p_tags);
 }
 
 void Model::set_locked(bool p_locked) {
@@ -142,10 +182,13 @@ void Model::set_archivable(bool p_archivable) {
 void Model::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_archivable"), &Model::is_archivable);
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &Model::set_archivable);
+	ClassDB::bind_method(D_METHOD("get_tags"), &Model::get_tags);
+	ClassDB::bind_method(D_METHOD("set_tags", "tags"), &Model::set_tags);
 	ClassDB::bind_method(D_METHOD("is_locked"), &Model::is_locked);
 	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &Model::set_locked);
 	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
+	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "Tags"), "set_tags", "get_tags");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 }
 
@@ -179,6 +222,14 @@ Part::Part() {
 
 bool Part::is_locked() const {
 	return has_meta("_edit_lock_");
+}
+
+PackedStringArray Part::get_tags() const {
+	return get_vextoria_tags(this);
+}
+
+void Part::set_tags(const PackedStringArray &p_tags) {
+	set_vextoria_tags(this, p_tags);
 }
 
 Part::~Part() {
@@ -849,6 +900,8 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_normal_maps_enabled", "enabled"), &Part::set_normal_maps_enabled);
 	ClassDB::bind_method(D_METHOD("is_archivable"), &Part::is_archivable);
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &Part::set_archivable);
+	ClassDB::bind_method(D_METHOD("get_tags"), &Part::get_tags);
+	ClassDB::bind_method(D_METHOD("set_tags", "tags"), &Part::set_tags);
 	ClassDB::bind_method(D_METHOD("is_locked"), &Part::is_locked);
 	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &Part::set_locked);
 	ClassDB::bind_method(D_METHOD("is_anchored"), &Part::is_anchored);
@@ -879,6 +932,7 @@ void Part::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "Color"), "set_color", "get_color");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "AppearanceMaterial", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_appearance_material", "get_appearance_material");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
+	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "Tags"), "set_tags", "get_tags");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Anchored"), "set_anchored", "is_anchored");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "CanCollide"), "set_can_collide", "get_can_collide");
