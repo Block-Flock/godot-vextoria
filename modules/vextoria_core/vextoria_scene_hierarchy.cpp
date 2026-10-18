@@ -77,6 +77,20 @@ Node3D *VextoriaSceneHierarchy::create_generic_spatial_instance() {
 	return memnew(VextoriaSpatialInstance);
 }
 
+Node *VextoriaSceneHierarchy::find_instance_child_by_name(Node *p_parent, const String &p_name) {
+	if (p_parent == nullptr) {
+		return nullptr;
+	}
+	const int32_t child_count = p_parent->get_child_count();
+	for (int32_t i = 0; i < child_count; i++) {
+		Node *child = p_parent->get_child(i);
+		if (is_vextoria_instance_node(child) && child->get_name() == p_name) {
+			return child;
+		}
+	}
+	return nullptr;
+}
+
 Array VextoriaSceneHierarchy::get_instance_children(Node *p_parent) {
 	Array result;
 	for (Node *child : collect_instance_children(p_parent)) {
@@ -265,6 +279,7 @@ bool VextoriaSceneHierarchy::set_instance_parent_internal(Node *p_node, Node *p_
 void VextoriaSceneHierarchy::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("create_generic_instance"), &VextoriaSceneHierarchy::create_generic_instance);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("create_generic_spatial_instance"), &VextoriaSceneHierarchy::create_generic_spatial_instance);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("find_instance_child_by_name", "parent", "name"), &VextoriaSceneHierarchy::find_instance_child_by_name);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_children", "parent"), &VextoriaSceneHierarchy::get_instance_children);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_descendants", "parent"), &VextoriaSceneHierarchy::get_instance_descendants);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_parent", "node"), &VextoriaSceneHierarchy::get_instance_parent);

@@ -56,6 +56,9 @@ func _initialize() -> void:
 	_assert_index(third, 2)
 	_assert_index(helper, -1)
 	_assert(_instance_names_from_api(parent) == ["First", "Second", "Third"], "native child API included helpers or changed order")
+	_assert(_find_instance_child_by_name(parent, "Second") == second, "native direct-name lookup missed a marked Instance child")
+	_assert(_find_instance_child_by_name(parent, "GodotHelper") == null, "native direct-name lookup exposed an unmarked helper Node")
+	_assert(_find_instance_child_by_name(parent, "Missing") == null, "native direct-name lookup returned a node for a missing name")
 	_assert(_instance_parent_from_api(first) == parent, "native parent API missed the marked SceneTree parent")
 	_assert(_instance_parent_from_api(helper) == null, "native parent API accepted an unmarked node")
 	_assert(_can_set_instance_parent(first, parent), "native parent preflight rejected a valid no-op")
@@ -171,6 +174,9 @@ func _instance_names_from_api(parent: Node) -> Array[String]:
 
 func _instance_parent_from_api(node: Node) -> Node:
 	return ClassDB.class_call_static("VextoriaSceneHierarchy", "get_instance_parent", node)
+
+func _find_instance_child_by_name(parent: Node, child_name: String) -> Node:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "find_instance_child_by_name", parent, child_name)
 
 func _assert_index(node: Node, expected: int) -> void:
 	_assert(_get_instance_child_index(node) == expected,
