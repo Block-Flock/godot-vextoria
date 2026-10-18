@@ -137,17 +137,18 @@ explicitly admitted, `ensure_item_for_node` creates marked ancestors first so
 the item does not attach to the wrong branch.
 
 `VextoriaSceneHierarchy` owns the native Roblox-Instance sibling-order bridge.
-Its filtered index counts only direct child Nodes marked
-`_vextoria_instance`, and its reorder operation moves within that filtered
+Its child-enumeration API returns direct child Nodes marked
+`_vextoria_instance` in native Godot order. Its filtered index counts only
+those children, and its reorder operation moves within that filtered
 sequence without treating private Godot helper Nodes as Instances. This is the
-engine source used for Roblox-facing `Instance.Index`; the client's cached
-index is retained only for detached objects and transition notifications.
-Its `set_instance_parent` operation validates marked Instance nodes, rejects
-self/cyclic parenting, and performs native attach, reparent, or detach through
-Godot's SceneTree. `Node::reparent()` emits `vextoria_reparented` once after a
-successful final attach; the existing parent-change signal still reports the
-internal remove/add transitions. These are structural operations only:
-NetworkParent bookkeeping, Roblox lifecycle events, validation policy,
+engine source used for Roblox-facing `Instance.GetChildren()` and `Index`; the
+managed child list is retained only for detached/headless compatibility
+objects. Its `set_instance_parent` operation validates marked Instance nodes,
+rejects self/cyclic parenting, and performs native attach, reparent, or detach
+through Godot's SceneTree. `Node::reparent()` emits `vextoria_reparented` once
+after a successful final attach; the existing parent-change signal still
+reports the internal remove/add transitions. These are structural operations
+only: NetworkParent bookkeeping, Roblox lifecycle events, validation policy,
 temporary-container replication, and Luau callbacks remain client
 compatibility responsibilities.
 

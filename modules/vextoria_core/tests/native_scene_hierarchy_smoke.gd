@@ -27,12 +27,14 @@ func _initialize() -> void:
 	first_child.set_meta("_vextoria_instance", true)
 	first.add_child(first_child)
 	var detached := Node.new()
+	detached.name = "Detached"
 	detached.set_meta("_vextoria_instance", true)
 
 	_assert_index(first, 0)
 	_assert_index(second, 1)
 	_assert_index(third, 2)
 	_assert_index(helper, -1)
+	_assert(_instance_names_from_api(parent) == ["First", "Second", "Third"], "native child API included helpers or changed order")
 	_assert(_move_instance_child(third, 0), "native Instance reorder returned false")
 	_assert_index(third, 0)
 	_assert_index(first, 1)
@@ -55,6 +57,7 @@ func _initialize() -> void:
 	_assert(detached.get_parent() == null, "native Instance detach left a Godot parent")
 	_assert_index(detached, -1)
 	_assert(_set_instance_parent(detached, parent), "detached Instance reattach failed")
+	_assert(_instance_names_from_api(parent) == ["Third", "Second", "First", "Detached"], "native child API omitted attached Instance")
 
 	parent.free()
 	if failed:
@@ -68,6 +71,13 @@ func _instance_names(parent: Node) -> Array[String]:
 	for child in parent.get_children():
 		if child.has_meta("_vextoria_instance") and child.get_meta("_vextoria_instance"):
 			result.append(child.name)
+	return result
+
+func _instance_names_from_api(parent: Node) -> Array[String]:
+	var result: Array[String] = []
+	var children: Array = ClassDB.class_call_static("VextoriaSceneHierarchy", "get_instance_children", parent)
+	for child: Node in children:
+		result.append(child.name)
 	return result
 
 func _assert_index(node: Node, expected: int) -> void:
