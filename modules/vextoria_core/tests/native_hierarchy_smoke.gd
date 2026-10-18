@@ -12,6 +12,12 @@ class PropertyChangeCounter extends RefCounted:
 	func record(property: StringName) -> void:
 		properties.append(property)
 
+class InstancePropertyChangeCounter extends RefCounted:
+	var changes: Array[Array] = []
+
+	func record(property: StringName, previous: Variant, current: Variant) -> void:
+		changes.append([property, previous, current])
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -35,9 +41,18 @@ func _run() -> void:
 	var folder: Node = ClassDB.instantiate("Folder")
 	folder.name = "Details"
 	assert(folder.has_signal("vextoria_parent_changed"), "native Node must expose the Vextoria parent-change bridge")
+	assert(folder.has_signal("vextoria_instance_property_changed"), "native Instance must expose old/new property values")
 	assert(folder.get("Tags") == PackedStringArray(), "native Instance Tags must default to empty")
+	var instance_property_changes := InstancePropertyChangeCounter.new()
+	folder.connect("vextoria_instance_property_changed", Callable(instance_property_changes, "record"))
 	folder.set("Tags", PackedStringArray(["fixture", "folder"]))
+	folder.set("Tags", PackedStringArray(["fixture", "folder"]))
+	folder.set("Archivable", false)
 	assert(folder.get("Tags") == PackedStringArray(["fixture", "folder"]), "native Folder Tags property must round trip")
+	assert(instance_property_changes.changes == [
+		[&"Tags", PackedStringArray(), PackedStringArray(["fixture", "folder"])],
+		[&"Archivable", true, false],
+	], "native Instance changes must include exact previous/current values and suppress no-op writes")
 	var parent_changes := ParentChangeCounter.new()
 	folder.connect("vextoria_parent_changed", Callable(parent_changes, "record"))
 	model.add_child(folder)
@@ -112,6 +127,7 @@ func _run() -> void:
 	assert(reopened_script.get_class() == "VextoriaScript" and not reopened_script is Node3D, "Script must retain native non-spatial identity")
 	assert(reopened_part.get_class() == "Part" and reopened_part.get("Size") == Vector3(2, 3, 1), "Part must retain native physics identity")
 	assert(reopened_folder.get("Tags") == PackedStringArray(["fixture", "folder"]), "Folder Tags must survive save/reopen")
+	assert(not reopened_folder.get("Archivable"), "Folder Archivable must survive save/reopen")
 	assert(reopened_script.get("Tags") == PackedStringArray(["script-tag"]), "Script Tags must survive save/reopen")
 	assert(reopened_part.get("Tags") == PackedStringArray(["part-tag"]), "Part Tags must survive save/reopen")
 	assert(reopened_root.get_node("OtherHouse").get("Tags") == PackedStringArray(["model-tag"]), "Model Tags must survive save/reopen")

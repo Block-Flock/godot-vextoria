@@ -64,11 +64,13 @@ static PackedStringArray get_vextoria_tags(const Object *p_object) {
 }
 
 static void set_vextoria_tags(Object *p_object, const PackedStringArray &p_tags) {
-	if (get_vextoria_tags(p_object) == p_tags) {
+	PackedStringArray old_tags = get_vextoria_tags(p_object);
+	if (old_tags == p_tags) {
 		return;
 	}
 	p_object->set_meta(get_vextoria_tags_meta(), p_tags);
 	p_object->emit_signal(SNAME("vextoria_property_changed"), SNAME("Tags"));
+	p_object->emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Tags"), old_tags, p_tags);
 }
 
 VextoriaInstance::VextoriaInstance() {
@@ -114,8 +116,10 @@ void VextoriaInstance::set_archivable(bool p_archivable) {
 	if (archivable == p_archivable) {
 		return;
 	}
+	bool old_archivable = archivable;
 	archivable = p_archivable;
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Archivable"));
+	emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Archivable"), old_archivable, p_archivable);
 }
 
 bool VextoriaInstance::is_locked() const {
@@ -146,6 +150,10 @@ void VextoriaInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_locked"), &VextoriaInstance::is_locked);
 	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &VextoriaInstance::set_locked);
 	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
+	ADD_SIGNAL(MethodInfo("vextoria_instance_property_changed",
+			PropertyInfo(Variant::STRING_NAME, "property"),
+			PropertyInfo(Variant::NIL, "previous", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT),
+			PropertyInfo(Variant::NIL, "current", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT)));
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "Tags"), "set_tags", "get_tags");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
@@ -175,8 +183,10 @@ void Model::set_archivable(bool p_archivable) {
 	if (archivable == p_archivable) {
 		return;
 	}
+	bool old_archivable = archivable;
 	archivable = p_archivable;
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Archivable"));
+	emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Archivable"), old_archivable, p_archivable);
 }
 
 void Model::_bind_methods() {
@@ -187,6 +197,10 @@ void Model::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_locked"), &Model::is_locked);
 	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &Model::set_locked);
 	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
+	ADD_SIGNAL(MethodInfo("vextoria_instance_property_changed",
+			PropertyInfo(Variant::STRING_NAME, "property"),
+			PropertyInfo(Variant::NIL, "previous", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT),
+			PropertyInfo(Variant::NIL, "current", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT)));
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "Tags"), "set_tags", "get_tags");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
@@ -277,8 +291,10 @@ void Part::set_archivable(bool p_archivable) {
 	if (archivable == p_archivable) {
 		return;
 	}
+	bool old_archivable = archivable;
 	archivable = p_archivable;
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Archivable"));
+	emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Archivable"), old_archivable, p_archivable);
 }
 
 void Part::set_size(const Vector3 &p_size) {
@@ -923,6 +939,10 @@ void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_appearance_material"), &Part::get_appearance_material);
 	ClassDB::bind_method(D_METHOD("set_appearance_material", "material"), &Part::set_appearance_material);
 	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
+	ADD_SIGNAL(MethodInfo("vextoria_instance_property_changed",
+			PropertyInfo(Variant::STRING_NAME, "property"),
+			PropertyInfo(Variant::NIL, "previous", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT),
+			PropertyInfo(Variant::NIL, "current", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT)));
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "Size"), "set_size", "get_size");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "Shape", PROPERTY_HINT_ENUM, "Brick,Sphere,Cylinder,Cone,Wedge,Corner,Bevel,Concave,Truss,Frame,Octant,Torus,BeveledCorner,ConcaveCorner,TriangleCorner,TriangleConcaveCorner"), "set_shape_kind", "get_shape_kind");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "Material", PROPERTY_HINT_ENUM, "SmoothPlastic,Brick,Concrete,Dirt,Fabric,Grass,Ice,Marble,Metal,MetalGrid,MetalPlate,Neon,Planks,Plastic,Plywood,RustyIron,Sand,Sandstone,Snow,Stone,Wood"), "set_material_kind", "get_material_kind");
