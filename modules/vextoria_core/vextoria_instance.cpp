@@ -89,6 +89,14 @@ void VextoriaInstance::reparent(RequiredParam<Node> p_parent, bool p_keep_global
 	}
 }
 
+void VextoriaInstance::set_archivable(bool p_archivable) {
+	if (archivable == p_archivable) {
+		return;
+	}
+	archivable = p_archivable;
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Archivable"));
+}
+
 bool VextoriaInstance::is_locked() const {
 	return has_meta("_edit_lock_");
 }
@@ -106,6 +114,7 @@ void VextoriaInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &VextoriaInstance::set_archivable);
 	ClassDB::bind_method(D_METHOD("is_locked"), &VextoriaInstance::is_locked);
 	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &VextoriaInstance::set_locked);
+	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 }
@@ -122,11 +131,20 @@ void Model::set_locked(bool p_locked) {
 	}
 }
 
+void Model::set_archivable(bool p_archivable) {
+	if (archivable == p_archivable) {
+		return;
+	}
+	archivable = p_archivable;
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Archivable"));
+}
+
 void Model::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_archivable"), &Model::is_archivable);
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &Model::set_archivable);
 	ClassDB::bind_method(D_METHOD("is_locked"), &Model::is_locked);
 	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &Model::set_locked);
+	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 }
@@ -202,6 +220,14 @@ void Part::set_locked(bool p_locked) {
 	} else if (has_meta("_edit_lock_")) {
 		remove_meta("_edit_lock_");
 	}
+}
+
+void Part::set_archivable(bool p_archivable) {
+	if (archivable == p_archivable) {
+		return;
+	}
+	archivable = p_archivable;
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Archivable"));
 }
 
 void Part::set_size(const Vector3 &p_size) {

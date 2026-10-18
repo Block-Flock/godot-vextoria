@@ -62,7 +62,7 @@ protected:
 public:
 	VextoriaInstance();
 	bool is_archivable() const { return archivable; }
-	void set_archivable(bool p_archivable) { archivable = p_archivable; }
+	void set_archivable(bool p_archivable);
 	bool is_locked() const;
 	void set_locked(bool p_locked);
 	void reparent(RequiredParam<Node> p_parent, bool p_keep_global_transform = true) override;
@@ -142,7 +142,7 @@ public:
 	void set_material_kind(int p_kind);
 	void set_normal_maps_enabled(bool p_enabled);
 	bool is_archivable() const { return archivable; }
-	void set_archivable(bool p_archivable) { archivable = p_archivable; }
+	void set_archivable(bool p_archivable);
 	bool is_locked() const;
 	void set_locked(bool p_locked);
 	bool is_anchored() const { return anchored; }
@@ -176,7 +176,7 @@ protected:
 
 public:
 	bool is_archivable() const { return archivable; }
-	void set_archivable(bool p_archivable) { archivable = p_archivable; }
+	void set_archivable(bool p_archivable);
 	bool is_locked() const;
 	void set_locked(bool p_locked);
 };
