@@ -54,6 +54,9 @@ func _run() -> void:
 
 	part.name = "Red Door"
 	assert(part_item.get_text(0) == "Red Door", "native rename was not reflected")
+	part_item.set_text(0, "Rejected Rename")
+	explorer.call("sync_item_name", part_item)
+	assert(part_item.get_text(0) == part.name, "native row did not restore its authoritative Node name")
 	folder_item.set_meta("_model_non_editable", true)
 	var search_result: Node = explorer.call("apply_search_filter", "red")
 	assert(search_result == part, "native search did not return the first matching Node")

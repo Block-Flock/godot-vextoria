@@ -62,6 +62,7 @@ public:
 	TreeItem *get_item_for_node(Node *p_node) const;
 	TreeItem *ensure_item_for_node(Node *p_node);
 	Node *get_node_for_item(TreeItem *p_item) const;
+	void sync_item_name(TreeItem *p_item);
 	bool is_node_excluded(Node *p_node) const;
 	Node *apply_search_filter(const String &p_query);
 };

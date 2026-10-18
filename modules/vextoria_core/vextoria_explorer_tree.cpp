@@ -40,6 +40,7 @@ void VextoriaExplorerTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_item_for_node", "node"), &VextoriaExplorerTree::get_item_for_node);
 	ClassDB::bind_method(D_METHOD("ensure_item_for_node", "node"), &VextoriaExplorerTree::ensure_item_for_node);
 	ClassDB::bind_method(D_METHOD("get_node_for_item", "item"), &VextoriaExplorerTree::get_node_for_item);
+	ClassDB::bind_method(D_METHOD("sync_item_name", "item"), &VextoriaExplorerTree::sync_item_name);
 	ClassDB::bind_method(D_METHOD("is_node_excluded", "node"), &VextoriaExplorerTree::is_node_excluded);
 	ClassDB::bind_method(D_METHOD("apply_search_filter", "query"), &VextoriaExplorerTree::apply_search_filter);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "source_root", PROPERTY_HINT_NODE_TYPE, "Node", PROPERTY_USAGE_NONE), "set_source_root", "get_source_root");
@@ -108,6 +109,16 @@ TreeItem *VextoriaExplorerTree::ensure_item_for_node(Node *p_node) {
 Node *VextoriaExplorerTree::get_node_for_item(TreeItem *p_item) const {
 	Node *const *node = item_nodes.getptr(p_item);
 	return node ? *node : nullptr;
+}
+
+void VextoriaExplorerTree::sync_item_name(TreeItem *p_item) {
+	if (p_item == nullptr) {
+		return;
+	}
+	Node *const *node = item_nodes.getptr(p_item);
+	if (node != nullptr && *node != nullptr) {
+		p_item->set_text(0, (*node)->get_name());
+	}
 }
 
 bool VextoriaExplorerTree::is_node_excluded(Node *p_node) const {
