@@ -37,6 +37,7 @@
 #include "core/io/resource_loader.h"
 #include "core/object/callable_mp.h"
 #include "core/object/class_db.h"
+#include "core/templates/hash_set.h"
 #include "core/os/mutex.h"
 #include "core/templates/local_vector.h"
 #include "scene/3d/mesh_instance_3d.h"
@@ -49,6 +50,8 @@
 #include "scene/resources/mesh.h"
 #include "scene/resources/shader.h"
 #include "scene/resources/surface_tool.h"
+
+#include <cstdint>
 
 static const StringName &get_vextoria_tags_meta() {
 	static const StringName tags_meta = SNAME("VextoriaTags");
@@ -73,10 +76,71 @@ static void set_vextoria_tags(Object *p_object, const PackedStringArray &p_tags)
 	p_object->emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Tags"), old_tags, p_tags);
 }
 
+static String resolve_unique_instance_sibling_name(const Node *p_subject, Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) {
+	HashSet<StringName> used_names;
+	if (p_sibling_container) {
+		for (int i = 0; i < p_sibling_container->get_child_count(false); ++i) {
+			Node *sibling = p_sibling_container->get_child(i, false);
+			if (sibling != p_subject && sibling->has_meta(SNAME("_vextoria_instance"))) {
+				used_names.insert(sibling->get_name());
+			}
+		}
+	}
+	for (int i = 0; i < p_reserved_names.size(); ++i) {
+		used_names.insert(StringName(p_reserved_names[i]));
+	}
+
+	if (!used_names.has(StringName(p_requested_name))) {
+		return p_requested_name;
+	}
+
+	int base_length = p_requested_name.length();
+	while (base_length > 0) {
+		char32_t c = p_requested_name[base_length - 1];
+		if (c < '0' || c > '9') {
+			break;
+		}
+		--base_length;
+	}
+
+	String base_name = p_requested_name.substr(0, base_length);
+	int32_t start_number = 0;
+	if (base_length < p_requested_name.length()) {
+		bool suffix_fits = true;
+		for (int i = base_length; i < p_requested_name.length(); ++i) {
+			int32_t digit = p_requested_name[i] - '0';
+			if (start_number > (INT32_MAX - digit) / 10) {
+				suffix_fits = false;
+				break;
+			}
+			start_number = start_number * 10 + digit;
+		}
+		if (!suffix_fits) {
+			start_number = 0;
+		}
+		if (start_number == INT32_MAX) {
+			start_number = 1;
+		}
+	}
+
+	int64_t candidate_number = start_number > 0 ? static_cast<int64_t>(start_number) + 1 : 2;
+	while (true) {
+		String candidate = base_name + String::num_int64(candidate_number);
+		if (!used_names.has(StringName(candidate))) {
+			return candidate;
+		}
+		++candidate_number;
+	}
+}
+
 VextoriaInstance::VextoriaInstance() {
 	// Roblox Folder/Script have no CFrame, but spatial descendants must still
 	// inherit the nearest Model/Part frame. Node3D honors this opt-in marker.
 	set_meta("_vextoria_spatial_passthrough", true);
+}
+
+String VextoriaInstance::get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const {
+	return resolve_unique_instance_sibling_name(this, p_sibling_container, p_requested_name, p_reserved_names);
 }
 
 static void collect_passthrough_spatial_roots(Node *p_node, LocalVector<Node3D *> &r_roots) {
@@ -143,6 +207,7 @@ void VextoriaInstance::set_locked(bool p_locked) {
 }
 
 void VextoriaInstance::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_unique_sibling_name", "sibling_container", "requested_name", "reserved_names"), &VextoriaInstance::get_unique_sibling_name);
 	ClassDB::bind_method(D_METHOD("is_archivable"), &VextoriaInstance::is_archivable);
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &VextoriaInstance::set_archivable);
 	ClassDB::bind_method(D_METHOD("get_tags"), &VextoriaInstance::get_tags);
@@ -189,7 +254,12 @@ void Model::set_archivable(bool p_archivable) {
 	emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Archivable"), old_archivable, p_archivable);
 }
 
+String Model::get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const {
+	return resolve_unique_instance_sibling_name(this, p_sibling_container, p_requested_name, p_reserved_names);
+}
+
 void Model::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_unique_sibling_name", "sibling_container", "requested_name", "reserved_names"), &Model::get_unique_sibling_name);
 	ClassDB::bind_method(D_METHOD("is_archivable"), &Model::is_archivable);
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &Model::set_archivable);
 	ClassDB::bind_method(D_METHOD("get_tags"), &Model::get_tags);
@@ -901,7 +971,12 @@ Ref<Shape3D> Part::get_geometry_collision() const {
 	return geometry_collision;
 }
 
+String Part::get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const {
+	return resolve_unique_instance_sibling_name(this, p_sibling_container, p_requested_name, p_reserved_names);
+}
+
 void Part::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_unique_sibling_name", "sibling_container", "requested_name", "reserved_names"), &Part::get_unique_sibling_name);
 	ClassDB::bind_method(D_METHOD("is_render_batched"), &Part::is_render_batched);
 	ClassDB::bind_method(D_METHOD("has_native_renderer"), &Part::has_native_renderer);
 	ADD_SIGNAL(MethodInfo("vextoria_batch_state_changed", PropertyInfo(Variant::BOOL, "batched")));

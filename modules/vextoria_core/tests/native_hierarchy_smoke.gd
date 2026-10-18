@@ -33,6 +33,7 @@ func _run() -> void:
 	root.add_child(scene_root)
 	var model: Node3D = ClassDB.instantiate("Model")
 	model.name = "House"
+	model.set_meta("_vextoria_instance", true)
 	scene_root.add_child(model)
 	model.owner = scene_root
 	model.position = Vector3(4, 2, 7)
@@ -40,6 +41,7 @@ func _run() -> void:
 	assert(model.has_meta("_edit_lock_"), "Model must use Godot's editor lock")
 	var folder: Node = ClassDB.instantiate("Folder")
 	folder.name = "Details"
+	folder.set_meta("_vextoria_instance", true)
 	assert(folder.has_signal("vextoria_parent_changed"), "native Node must expose the Vextoria parent-change bridge")
 	assert(folder.has_signal("vextoria_instance_property_changed"), "native Instance must expose old/new property values")
 	assert(folder.get("Tags") == PackedStringArray(), "native Instance Tags must default to empty")
@@ -57,9 +59,17 @@ func _run() -> void:
 	folder.connect("vextoria_parent_changed", Callable(parent_changes, "record"))
 	model.add_child(folder)
 	assert(parent_changes.count == 1, "adding a child must emit exactly one native parent-change signal")
+	var folder_sibling: Node = ClassDB.instantiate("Folder")
+	folder_sibling.name = "Details2"
+	folder_sibling.set_meta("_vextoria_instance", true)
+	model.add_child(folder_sibling)
+	assert(folder.call("get_unique_sibling_name", model, "Details2", PackedStringArray(["Details3"])) == "Details4", "native name resolver must exclude its subject, include native siblings and reserved compatibility names")
+	assert(model.call("get_unique_sibling_name", scene_root, "AvailableName", PackedStringArray()) == "AvailableName", "Model native name resolver must leave an unused sibling name unchanged")
+	folder_sibling.free()
 	folder.owner = scene_root
 	var script: Node = ClassDB.instantiate("VextoriaScript")
 	script.name = "LampScript"
+	script.set_meta("_vextoria_instance", true)
 	script.set("Tags", PackedStringArray(["script-tag"]))
 	folder.add_child(script)
 	script.owner = scene_root
@@ -73,8 +83,15 @@ func _run() -> void:
 	assert(property_changes.properties == [&"Source", &"Disabled"], "native Script edits must signal only actual Source/Disabled changes")
 	var part: RigidBody3D = ClassDB.instantiate("Part")
 	part.name = "Wall"
+	part.set_meta("_vextoria_instance", true)
 	part.set("Tags", PackedStringArray(["part-tag"]))
 	script.add_child(part)
+	var part_sibling: RigidBody3D = ClassDB.instantiate("Part")
+	part_sibling.name = "Wall2"
+	part_sibling.set_meta("_vextoria_instance", true)
+	script.add_child(part_sibling)
+	assert(part.call("get_unique_sibling_name", script, "Wall2", PackedStringArray(["Wall3"])) == "Wall4", "Part native name resolver must include native siblings and reserved compatibility names")
+	part_sibling.free()
 	part.owner = scene_root
 	part.set("Anchored", true)
 	part.set("Size", Vector3(2, 3, 1))
@@ -96,8 +113,10 @@ func _run() -> void:
 	assert(plain_part.get_parent_node_3d() == null, "ordinary Godot Nodes must not acquire Vextoria pass-through behavior")
 	var other_model: Node3D = ClassDB.instantiate("Model")
 	other_model.name = "OtherHouse"
+	other_model.set_meta("_vextoria_instance", true)
 	other_model.set("Tags", PackedStringArray(["model-tag"]))
 	scene_root.add_child(other_model)
+	assert(model.call("get_unique_sibling_name", scene_root, "OtherHouse", PackedStringArray()) == "OtherHouse2", "Model name resolver must suffix a native spatial sibling collision")
 	other_model.owner = scene_root
 	other_model.position = Vector3(20, -3, 6)
 	var world_before_reparent := part.global_transform

@@ -62,6 +62,7 @@ protected:
 
 public:
 	VextoriaInstance();
+	String get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const;
 	bool is_archivable() const { return archivable; }
 	void set_archivable(bool p_archivable);
 	PackedStringArray get_tags() const;
@@ -132,6 +133,7 @@ protected:
 public:
 	Part();
 	~Part();
+	String get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const;
 	bool is_render_batched() const { return render_batched; }
 	bool has_native_renderer() const { return render_owner.is_valid(); }
 	static void clear_shape_asset_cache();
@@ -180,6 +182,7 @@ protected:
 	static void _bind_methods();
 
 public:
+	String get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const;
 	bool is_archivable() const { return archivable; }
 	void set_archivable(bool p_archivable);
 	PackedStringArray get_tags() const;

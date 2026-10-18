@@ -136,6 +136,14 @@ When a detached Creator world admits a descendant before its parent has been
 explicitly admitted, `ensure_item_for_node` creates marked ancestors first so
 the item does not attach to the wrong branch.
 
+Native `VextoriaInstance`, `Model`, and `Part` also expose
+`get_unique_sibling_name`. The fork resolves suffixes against tagged native
+Instance siblings in the supplied Godot parent and a reserved-name list for
+transitional non-native compatibility objects. It builds the used-name set
+once per mutation instead of repeatedly rescanning siblings for every suffix;
+the client can therefore delegate native Instance naming to the engine while
+retaining a fallback for classes not yet represented by native classes.
+
 The hinge frame split follows the observable C0/C1 contract in
 `ROBLOX-main/App/v8datamodel/JointInstance.cpp` and
 `ROBLOX-main/App/include/v8world/RotateJoint.h`. Body A and body B retain
@@ -168,7 +176,8 @@ Smoke coverage:
 - `tests/native_hierarchy_smoke.gd`: Model/Folder/Script/Part ClassDB ancestry,
   real Godot parentage, transform/visibility pass-through, CFrame-preserving
   Folder reparent, ordinary-Node isolation, native `VextoriaScript.Source` /
-  `Disabled` change notifications with no-op suppression, and PackedScene
+  `Disabled` change notifications with no-op suppression, native sibling-name
+  collision/suffix resolution across Folder, Model, and Part, and PackedScene
   save/reopen.
 - `tests/native_explorer_smoke.gd`: native SceneTree-backed hierarchy and
   bidirectional row identity, confirms identity is not duplicated in
