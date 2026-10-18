@@ -6,6 +6,13 @@ class ParentChangeCounter extends RefCounted:
 	func record() -> void:
 		count += 1
 
+class CompletedReparentCounter extends RefCounted:
+	var node: Node
+	var parents: Array[Variant] = []
+
+	func record() -> void:
+		parents.append(node.get_parent())
+
 class PropertyChangeCounter extends RefCounted:
 	var properties: Array[StringName] = []
 
@@ -57,6 +64,10 @@ func _run() -> void:
 	], "native Instance changes must include exact previous/current values and suppress no-op writes")
 	var parent_changes := ParentChangeCounter.new()
 	folder.connect("vextoria_parent_changed", Callable(parent_changes, "record"))
+	assert(folder.has_signal("vextoria_reparented"), "native Node must expose an atomic completed-reparent bridge")
+	var completed_reparents := CompletedReparentCounter.new()
+	completed_reparents.node = folder
+	folder.connect("vextoria_reparented", Callable(completed_reparents, "record"))
 	model.add_child(folder)
 	assert(parent_changes.count == 1, "adding a child must emit exactly one native parent-change signal")
 	var folder_sibling: Node = ClassDB.instantiate("Folder")
@@ -122,6 +133,7 @@ func _run() -> void:
 	var world_before_reparent := part.global_transform
 	folder.reparent(other_model, true)
 	assert(parent_changes.count == 3, "reparent must report detach and attach to native observers")
+	assert(completed_reparents.parents == [other_model], "reparent completion must emit once after the final parent is installed")
 	assert(folder.get_parent() == other_model and part.get_parent_node_3d() == other_model, "reparent must update logical and spatial ancestry")
 	assert(part.global_transform.is_equal_approx(world_before_reparent), "Folder reparent must preserve Part world CFrame")
 	other_model.position += Vector3(3, 0, 0)
@@ -129,6 +141,7 @@ func _run() -> void:
 	var world_before_return := part.global_transform
 	folder.reparent(model, true)
 	assert(parent_changes.count == 5, "return reparent must report both native parent transitions")
+	assert(completed_reparents.parents == [other_model, model], "second reparent completion must not expose a transient detached parent")
 	assert(part.global_transform.is_equal_approx(world_before_return), "return reparent must preserve Part world CFrame")
 	var packed := PackedScene.new()
 	assert(packed.pack(scene_root) == OK, "native hierarchy must pack")
@@ -154,8 +167,10 @@ func _run() -> void:
 	assert(reopened_model.get("Locked") and reopened_script.get("Source") == "return true" and reopened_script.get("Disabled"), "native properties must survive save/reopen")
 	model.remove_child(folder)
 	assert(parent_changes.count == 6 and folder.get_parent() == null, "remove_child must report the final detached state")
+	assert(completed_reparents.parents.size() == 2, "remove_child alone must not masquerade as an atomic reparent")
 	model.add_child(folder)
 	assert(parent_changes.count == 7 and folder.get_parent() == model, "re-adding a detached child must report the new parent")
+	assert(completed_reparents.parents.size() == 2, "add_child alone must not masquerade as an atomic reparent")
 	assert(DirAccess.remove_absolute(ProjectSettings.globalize_path(path)) == OK, "smoke output cleanup failed")
 	reopened_root.free()
 	print("VEXTORIA_NATIVE_HIERARCHY_PASS: spatial Model, non-spatial Folder/Script, native Tags and Script property signals, real Part, parent-change bridge, save/reopen")

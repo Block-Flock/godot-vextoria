@@ -2062,6 +2062,7 @@ void Node::reparent(RequiredParam<Node> rp_parent, bool p_keep_global_transform)
 	if (p_parent == data.parent) {
 		return;
 	}
+	Node *old_parent = data.parent;
 
 	bool preserve_owner = data.owner && (data.owner == p_parent || data.owner->is_ancestor_of(p_parent));
 	Node *owner_temp = data.owner;
@@ -2096,6 +2097,13 @@ void Node::reparent(RequiredParam<Node> rp_parent, bool p_keep_global_transform)
 		for (Node *E : common_parents) {
 			E->set_owner(owner_temp);
 		}
+	}
+
+	// remove_child() and add_child() each emit the compatibility parent-change
+	// bridge. This additional signal identifies the completed transaction so
+	// listeners do not need to treat the temporary detach as a logical reparent.
+	if (data.parent == p_parent && old_parent != data.parent) {
+		emit_signal(SNAME("vextoria_reparented"));
 	}
 }
 
@@ -4035,6 +4043,7 @@ void Node::_bind_methods() {
 
 	ADD_SIGNAL(MethodInfo("child_order_changed"));
 	ADD_SIGNAL(MethodInfo("vextoria_parent_changed"));
+	ADD_SIGNAL(MethodInfo("vextoria_reparented"));
 	ADD_SIGNAL(MethodInfo("replacing_by", PropertyInfo(Variant::OBJECT, "node", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));
 	ADD_SIGNAL(MethodInfo("editor_description_changed", PropertyInfo(Variant::OBJECT, "node", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));
 	ADD_SIGNAL(MethodInfo("editor_state_changed"));
