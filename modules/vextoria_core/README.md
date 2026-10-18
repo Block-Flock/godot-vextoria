@@ -136,6 +136,15 @@ When a detached Creator world admits a descendant before its parent has been
 explicitly admitted, `ensure_item_for_node` creates marked ancestors first so
 the item does not attach to the wrong branch.
 
+`VextoriaSceneHierarchy` owns the native Roblox-Instance sibling-order bridge.
+Its filtered index counts only direct child Nodes marked
+`_vextoria_instance`, and its reorder operation moves within that filtered
+sequence without treating private Godot helper Nodes as Instances. This is the
+engine source used for Roblox-facing `Instance.Index`; the client's cached
+index is retained only for detached objects and transition notifications.
+NetworkedObject parent/lifecycle ownership remains a client compatibility
+responsibility and is not implied to be native by this helper.
+
 Native `VextoriaInstance`, `Model`, and `Part` also expose
 `get_unique_sibling_name`. The fork resolves suffixes against tagged native
 Instance siblings in the supplied Godot parent and a reserved-name list for

@@ -39,6 +39,7 @@
 #include "vextoria_roblox2016_tool_assembly_driver.h"
 #include "vextoria_roblox2016_tool_state_machine.h"
 #include "vextoria_creator_selection_state.h"
+#include "vextoria_scene_hierarchy.h"
 #include "vextoria_roblox2016_transform_math.h"
 
 #include "core/object/class_db.h"
@@ -83,6 +84,7 @@ void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(VextoriaRoblox2016ToolAssemblyDriver);
 	GDREGISTER_CLASS(VextoriaRoblox2016ToolStateMachine);
 	GDREGISTER_CLASS(VextoriaCreatorSelectionState);
+	GDREGISTER_CLASS(VextoriaSceneHierarchy);
 }
 
 void uninitialize_vextoria_core_module(ModuleInitializationLevel p_level) {
