@@ -111,6 +111,10 @@ class Part : public RigidBody3D {
 	// Independent transient owners; neither rewrites authored Anchored state.
 	uint8_t tool_freeze_reasons = 0;
 	bool can_collide = true;
+	// Authored Roblox-facing masks are distinct from the effective Godot masks,
+	// which the client derives for static/dynamic physics routing.
+	uint32_t collision_layers = 1;
+	uint32_t collision_mask = 1;
 	MeshInstance3D *visual = nullptr;
 	CollisionShape3D *collision = nullptr;
 	Ref<BoxMesh> box_mesh;
@@ -179,6 +183,10 @@ public:
 	bool is_tool_freeze_reason_active(int p_reason) const;
 	bool get_can_collide() const { return can_collide; }
 	void set_can_collide(bool p_can_collide);
+	uint32_t get_collision_layers() const { return collision_layers; }
+	void set_collision_layers(uint32_t p_collision_layers);
+	uint32_t get_authored_collision_mask() const { return collision_mask; }
+	void set_authored_collision_mask(uint32_t p_collision_mask);
 	// Restore the native box geometry after a gameplay Part switches back from
 	// an authored non-box shape. Size remains authoritative on this native node.
 	void reset_builtin_geometry();

@@ -941,6 +941,22 @@ void Part::set_can_collide(bool p_can_collide) {
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("CanCollide"));
 }
 
+void Part::set_collision_layers(uint32_t p_collision_layers) {
+	if (collision_layers == p_collision_layers) {
+		return;
+	}
+	collision_layers = p_collision_layers;
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("CollisionLayers"));
+}
+
+void Part::set_authored_collision_mask(uint32_t p_collision_mask) {
+	if (collision_mask == p_collision_mask) {
+		return;
+	}
+	collision_mask = p_collision_mask;
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("RobloxCollisionMask"));
+}
+
 void Part::reset_builtin_geometry() {
 	clear_registry_shape_binding();
 	external_geometry = false;
@@ -1070,6 +1086,10 @@ void Part::_bind_methods() {
 	ClassDB::bind_integer_constant(get_class_static(), "ToolFreezeReason", "TOOL_FREEZE_HELD", 1);
 	ClassDB::bind_method(D_METHOD("get_can_collide"), &Part::get_can_collide);
 	ClassDB::bind_method(D_METHOD("set_can_collide", "can_collide"), &Part::set_can_collide);
+	ClassDB::bind_method(D_METHOD("get_collision_layers"), &Part::get_collision_layers);
+	ClassDB::bind_method(D_METHOD("set_collision_layers", "collision_layers"), &Part::set_collision_layers);
+	ClassDB::bind_method(D_METHOD("get_authored_collision_mask"), &Part::get_authored_collision_mask);
+	ClassDB::bind_method(D_METHOD("set_authored_collision_mask", "collision_mask"), &Part::set_authored_collision_mask);
 	ClassDB::bind_method(D_METHOD("reset_builtin_geometry"), &Part::reset_builtin_geometry);
 	ClassDB::bind_method(D_METHOD("set_builtin_wedge_geometry"), &Part::set_builtin_wedge_geometry);
 	ClassDB::bind_method(D_METHOD("get_builtin_geometry_kind"), &Part::get_builtin_geometry_kind);
@@ -1099,6 +1119,10 @@ void Part::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Anchored"), "set_anchored", "is_anchored");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "CanCollide"), "set_can_collide", "get_can_collide");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "CollisionLayers", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_collision_layers", "get_collision_layers");
+	// CollisionMask already means Godot's effective body mask on RigidBody3D.
+	// Keep Roblox-authored state separately named instead of shadowing that API.
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "RobloxCollisionMask", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_authored_collision_mask", "get_authored_collision_mask");
 }
 
 void VextoriaScript::_bind_methods() {

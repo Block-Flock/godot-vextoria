@@ -66,11 +66,11 @@ void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 		return;
 	}
 
-	// This base is a concrete runtime representation for generic Roblox
-	// Instances, but it is an implementation type rather than a CreateDialog
-	// entry. Folder and VextoriaScript remain the user-facing native subclasses.
-	GDREGISTER_INTERNAL_CLASS(VextoriaInstance);
-	GDREGISTER_INTERNAL_CLASS(VextoriaSpatialInstance);
+	// These bases are not CreateDialog entries, but exposed abstract classes are
+	// required so CoreCLR can generate the native inheritance of Folder, Script,
+	// and Model without inventing managed stand-ins for their Godot base types.
+	GDREGISTER_ABSTRACT_CLASS(VextoriaInstance);
+	GDREGISTER_ABSTRACT_CLASS(VextoriaSpatialInstance);
 	GDREGISTER_CLASS(Part);
 	// AppearanceMaterial is an optional authored override. The default Part
 	// derives its material from the registry; do not retain that live GPU
