@@ -3,6 +3,16 @@ extends SceneTree
 var failed := false
 
 func _initialize() -> void:
+	var generic_instance := ClassDB.class_call_static(
+		"VextoriaSceneHierarchy", "create_generic_instance") as Node
+	_assert(generic_instance != null and generic_instance.get_class() == "VextoriaInstance",
+		"native hierarchy factory did not create the generic Vextoria Instance base")
+	_assert(not ClassDB.can_instantiate("VextoriaInstance"),
+		"generic Vextoria implementation base leaked into Godot's public CreateDialog class list")
+	if generic_instance != null:
+		generic_instance.set_meta("_vextoria_instance", true)
+		root.add_child(generic_instance)
+
 	var parent := Node.new()
 	parent.name = "InstanceParent"
 	parent.set_meta("_vextoria_instance", true)
@@ -131,7 +141,7 @@ func _initialize() -> void:
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered child/parent queries, helper-node exclusion, ordered move, ParentLocked preflight and raw Node mutation enforcement, transactional attach/detach, reentrancy rejection, cycle rejection, clamp")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: generic native Instance factory, hidden implementation base, filtered child/parent queries, ParentLocked raw mutation enforcement, transactional attach/detach, cycles and ordering")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:

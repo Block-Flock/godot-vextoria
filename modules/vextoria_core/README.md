@@ -4,6 +4,15 @@
 Godot SceneTreeDock, EditorSelection, Inspector, and EditorUndoRedoManager own
 their editor identity; this module does not create a second Explorer tree.
 
+`VextoriaInstance` is registered as an internal, non-CreateDialog base and is
+instantiated for generic non-spatial Roblox Instance proxies through
+`VextoriaSceneHierarchy.create_generic_instance()`. This gives classes without
+a specialized native node or authored scene the engine-owned Archivable, Tags,
+Locked, sibling naming, and Node identity surface. Class-specific scenes retain
+precedence; non-Instance network objects retain ordinary Nodes. Specialized
+spatial compatibility proxies and their remaining managed behaviors are still
+transitional and are not covered by this generic base cutover.
+
 `Part` is a `RigidBody3D` with internal mesh and collision children. Those
 children are not independent Vextoria objects and are not serialized; a
 reopened `Part` reconstructs them from its native `Size` and `Color` properties.

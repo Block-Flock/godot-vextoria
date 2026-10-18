@@ -40,6 +40,10 @@ std::vector<Node *> collect_instance_children(Node *p_parent) {
 }
 } // namespace
 
+Node *VextoriaSceneHierarchy::create_generic_instance() {
+	return memnew(VextoriaInstance);
+}
+
 Array VextoriaSceneHierarchy::get_instance_children(Node *p_parent) {
 	Array result;
 	for (Node *child : collect_instance_children(p_parent)) {
@@ -218,6 +222,7 @@ bool VextoriaSceneHierarchy::set_instance_parent_internal(Node *p_node, Node *p_
 }
 
 void VextoriaSceneHierarchy::_bind_methods() {
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("create_generic_instance"), &VextoriaSceneHierarchy::create_generic_instance);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_children", "parent"), &VextoriaSceneHierarchy::get_instance_children);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_parent", "node"), &VextoriaSceneHierarchy::get_instance_parent);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("can_set_instance_parent", "node", "parent"), &VextoriaSceneHierarchy::can_set_instance_parent);
