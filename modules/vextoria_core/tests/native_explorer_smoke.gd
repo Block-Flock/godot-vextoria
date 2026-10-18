@@ -54,6 +54,18 @@ func _run() -> void:
 
 	part.name = "Red Door"
 	assert(part_item.get_text(0) == "Red Door", "native rename was not reflected")
+	folder_item.set_meta("_model_non_editable", true)
+	var search_result: Node = explorer.call("apply_search_filter", "red")
+	assert(search_result == part, "native search did not return the first matching Node")
+	assert(part_item.is_visible(), "native search hid the matching row")
+	assert(folder_item.is_visible() and model_item.is_visible(), "native search did not reveal matching ancestors")
+	search_result = explorer.call("apply_search_filter", "no such instance")
+	assert(search_result == null, "native search returned a result for a non-matching query")
+	assert(not part_item.is_visible(), "native no-match search left a non-matching row visible")
+	explorer.call("apply_search_filter", "")
+	assert(not folder_item.is_visible(), "clearing native search ignored Creator model visibility state")
+	assert(part_item.is_visible(), "clearing native search failed to restore an ordinary row")
+	folder_item.set_meta("_model_non_editable", false)
 	var second: Node3D = ClassDB.instantiate("Model")
 	second.name = "Other House"
 	second.set_meta("_vextoria_instance", true)

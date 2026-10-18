@@ -50,6 +50,7 @@ class VextoriaExplorerTree : public Tree {
 	void _node_removed(Node *p_node);
 	void _node_renamed(Node *p_node);
 	void _tree_changed();
+	Node *_apply_search_filter(TreeItem *p_item, const String &p_query);
 
 protected:
 	static void _bind_methods();
@@ -62,4 +63,5 @@ public:
 	TreeItem *ensure_item_for_node(Node *p_node);
 	Node *get_node_for_item(TreeItem *p_item) const;
 	bool is_node_excluded(Node *p_node) const;
+	Node *apply_search_filter(const String &p_query);
 };

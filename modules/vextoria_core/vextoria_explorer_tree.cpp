@@ -41,6 +41,7 @@ void VextoriaExplorerTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("ensure_item_for_node", "node"), &VextoriaExplorerTree::ensure_item_for_node);
 	ClassDB::bind_method(D_METHOD("get_node_for_item", "item"), &VextoriaExplorerTree::get_node_for_item);
 	ClassDB::bind_method(D_METHOD("is_node_excluded", "node"), &VextoriaExplorerTree::is_node_excluded);
+	ClassDB::bind_method(D_METHOD("apply_search_filter", "query"), &VextoriaExplorerTree::apply_search_filter);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "source_root", PROPERTY_HINT_NODE_TYPE, "Node", PROPERTY_USAGE_NONE), "set_source_root", "get_source_root");
 	ADD_SIGNAL(MethodInfo("item_added", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::OBJECT, "item")));
 	ADD_SIGNAL(MethodInfo("item_removing", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::OBJECT, "item")));
@@ -119,6 +120,49 @@ bool VextoriaExplorerTree::is_node_excluded(Node *p_node) const {
 		}
 	}
 	return false;
+}
+
+Node *VextoriaExplorerTree::_apply_search_filter(TreeItem *p_item, const String &p_query) {
+	if (p_item == nullptr) {
+		return nullptr;
+	}
+
+	Node **node_ptr = item_nodes.getptr(p_item);
+	Node *node = node_ptr ? *node_ptr : nullptr;
+	const bool force_invisible = p_item->has_meta(SNAME("_force_invisible")) &&
+			p_item->get_meta(SNAME("_force_invisible")).booleanize();
+	Node *first_match = nullptr;
+	if (p_query.is_empty()) {
+		const bool model_non_editable = p_item->has_meta(SNAME("_model_non_editable")) &&
+				p_item->get_meta(SNAME("_model_non_editable")).booleanize();
+		p_item->set_visible(!force_invisible && !model_non_editable);
+	} else {
+		const bool matches = !force_invisible && node != nullptr &&
+				String(node->get_name()).to_lower().contains(p_query);
+		p_item->set_visible(matches);
+		if (matches) {
+			first_match = node;
+			for (TreeItem *parent = p_item->get_parent(); parent != nullptr; parent = parent->get_parent()) {
+				if (parent->has_meta(SNAME("_force_invisible")) &&
+						parent->get_meta(SNAME("_force_invisible")).booleanize()) {
+					break;
+				}
+				parent->set_visible(true);
+			}
+		}
+	}
+
+	for (TreeItem *child = p_item->get_first_child(); child != nullptr; child = child->get_next()) {
+		Node *child_match = _apply_search_filter(child, p_query);
+		if (first_match == nullptr) {
+			first_match = child_match;
+		}
+	}
+	return first_match;
+}
+
+Node *VextoriaExplorerTree::apply_search_filter(const String &p_query) {
+	return _apply_search_filter(get_root(), p_query.to_lower());
 }
 
 void VextoriaExplorerTree::_add_subtree(Node *p_node, bool p_recurse) {
