@@ -40,6 +40,7 @@ class VextoriaExplorerTree : public Tree {
 	HashMap<Node *, TreeItem *> node_items;
 	HashMap<TreeItem *, Node *> item_nodes;
 	String search_query;
+	ObjectID pending_scroll_node;
 	bool order_dirty = false;
 
 	void _add_subtree(Node *p_node, bool p_recurse = true);
@@ -63,6 +64,7 @@ public:
 	Node *get_source_root() const { return source_root; }
 	TreeItem *get_item_for_node(Node *p_node) const;
 	TreeItem *ensure_item_for_node(Node *p_node);
+	bool set_instance_selected(Node *p_node, bool p_selected);
 	Node *get_node_for_item(TreeItem *p_item) const;
 	bool refresh_node_presentation(Node *p_node);
 	void sync_item_name(TreeItem *p_item);
