@@ -892,3 +892,19 @@ void VextoriaScript::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "Source", PROPERTY_HINT_MULTILINE_TEXT), "set_source", "get_source");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Disabled"), "set_disabled", "is_disabled");
 }
+
+void VextoriaScript::set_source(const String &p_source) {
+	if (source == p_source) {
+		return;
+	}
+	source = p_source;
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Source"));
+}
+
+void VextoriaScript::set_disabled(bool p_disabled) {
+	if (disabled == p_disabled) {
+		return;
+	}
+	disabled = p_disabled;
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Disabled"));
+}

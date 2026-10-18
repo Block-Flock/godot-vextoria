@@ -167,7 +167,9 @@ Smoke coverage:
   `scene/3d/physics/joints` and `servers/physics_3d`, not a C# shim.
 - `tests/native_hierarchy_smoke.gd`: Model/Folder/Script/Part ClassDB ancestry,
   real Godot parentage, transform/visibility pass-through, CFrame-preserving
-  Folder reparent, ordinary-Node isolation, and PackedScene save/reopen.
+  Folder reparent, ordinary-Node isolation, native `VextoriaScript.Source` /
+  `Disabled` change notifications with no-op suppression, and PackedScene
+  save/reopen.
 - `tests/native_explorer_smoke.gd`: native SceneTree-backed hierarchy and
   bidirectional row identity, confirms identity is not duplicated in
   `TreeItem` metadata, and covers exclusion, rename, reparent, ordering,

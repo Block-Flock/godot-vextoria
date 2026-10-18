@@ -6,6 +6,12 @@ class ParentChangeCounter extends RefCounted:
 	func record() -> void:
 		count += 1
 
+class PropertyChangeCounter extends RefCounted:
+	var properties: Array[StringName] = []
+
+	func record(property: StringName) -> void:
+		properties.append(property)
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -38,7 +44,14 @@ func _run() -> void:
 	script.name = "LampScript"
 	folder.add_child(script)
 	script.owner = scene_root
+	assert(script.has_signal("vextoria_property_changed"), "native Script must expose property synchronization")
+	var property_changes := PropertyChangeCounter.new()
+	script.connect("vextoria_property_changed", Callable(property_changes, "record"))
 	script.set("Source", "return true")
+	script.set("Source", "return true")
+	script.set("Disabled", true)
+	script.set("Disabled", true)
+	assert(property_changes.properties == [&"Source", &"Disabled"], "native Script edits must signal only actual Source/Disabled changes")
 	var part: RigidBody3D = ClassDB.instantiate("Part")
 	part.name = "Wall"
 	script.add_child(part)
@@ -93,12 +106,12 @@ func _run() -> void:
 	assert(reopened_script.get_class() == "VextoriaScript" and not reopened_script is Node3D, "Script must retain native non-spatial identity")
 	assert(reopened_part.get_class() == "Part" and reopened_part.get("Size") == Vector3(2, 3, 1), "Part must retain native physics identity")
 	assert(reopened_part.get_parent_node_3d() == reopened_model, "saved hierarchy must retain spatial pass-through")
-	assert(reopened_model.get("Locked") and reopened_script.get("Source") == "return true", "native properties must survive save/reopen")
+	assert(reopened_model.get("Locked") and reopened_script.get("Source") == "return true" and reopened_script.get("Disabled"), "native properties must survive save/reopen")
 	model.remove_child(folder)
 	assert(parent_changes.count == 6 and folder.get_parent() == null, "remove_child must report the final detached state")
 	model.add_child(folder)
 	assert(parent_changes.count == 7 and folder.get_parent() == model, "re-adding a detached child must report the new parent")
 	assert(DirAccess.remove_absolute(ProjectSettings.globalize_path(path)) == OK, "smoke output cleanup failed")
 	reopened_root.free()
-	print("VEXTORIA_NATIVE_HIERARCHY_PASS: spatial Model, non-spatial Folder/Script, real Part, parent-change bridge, save/reopen")
+	print("VEXTORIA_NATIVE_HIERARCHY_PASS: spatial Model, non-spatial Folder/Script, native script property signals, real Part, parent-change bridge, save/reopen")
 	quit(0)

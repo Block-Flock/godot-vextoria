@@ -199,7 +199,7 @@ protected:
 
 public:
 	String get_source() const { return source; }
-	void set_source(const String &p_source) { source = p_source; }
+	void set_source(const String &p_source);
 	bool is_disabled() const { return disabled; }
-	void set_disabled(bool p_disabled) { disabled = p_disabled; }
+	void set_disabled(bool p_disabled);
 };
