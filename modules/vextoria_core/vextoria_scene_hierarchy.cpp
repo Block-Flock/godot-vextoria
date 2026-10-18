@@ -84,7 +84,39 @@ bool VextoriaSceneHierarchy::move_instance_child(Node *p_node, int64_t p_index) 
 	return true;
 }
 
+bool VextoriaSceneHierarchy::set_instance_parent(Node *p_node, Node *p_parent) {
+	if (!is_vextoria_instance_node(p_node)) {
+		return false;
+	}
+	if (p_parent != nullptr && !is_vextoria_instance_node(p_parent)) {
+		return false;
+	}
+	if (p_node == p_parent || (p_parent != nullptr && p_node->is_ancestor_of(p_parent))) {
+		return false;
+	}
+
+	Node *old_parent = p_node->get_parent();
+	if (old_parent == p_parent) {
+		return true;
+	}
+
+	if (p_parent == nullptr) {
+		if (old_parent != nullptr) {
+			old_parent->remove_child(p_node);
+		}
+		return p_node->get_parent() == nullptr;
+	}
+
+	if (old_parent == nullptr) {
+		p_parent->add_child(p_node);
+	} else {
+		p_node->reparent(p_parent, true);
+	}
+	return p_node->get_parent() == p_parent;
+}
+
 void VextoriaSceneHierarchy::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_child_index", "node"), &VextoriaSceneHierarchy::get_instance_child_index);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("move_instance_child", "node", "index"), &VextoriaSceneHierarchy::move_instance_child);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("set_instance_parent", "node", "parent"), &VextoriaSceneHierarchy::set_instance_parent);
 }

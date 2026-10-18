@@ -5,6 +5,7 @@ var failed := false
 func _initialize() -> void:
 	var parent := Node.new()
 	parent.name = "InstanceParent"
+	parent.set_meta("_vextoria_instance", true)
 	root.add_child(parent)
 
 	var first := Node.new()
@@ -22,6 +23,11 @@ func _initialize() -> void:
 	parent.add_child(helper)
 	parent.add_child(second)
 	parent.add_child(third)
+	var first_child := Node.new()
+	first_child.set_meta("_vextoria_instance", true)
+	first.add_child(first_child)
+	var detached := Node.new()
+	detached.set_meta("_vextoria_instance", true)
 
 	_assert_index(first, 0)
 	_assert_index(second, 1)
@@ -39,16 +45,22 @@ func _initialize() -> void:
 	_assert_index(first, 2)
 	_assert(_instance_names(parent) == ["Third", "Second", "First"], "out-of-range index was not clamped")
 	_assert(not VextoriaSceneHierarchy.move_instance_child(helper, 0), "unmarked helper was accepted as an Instance")
-
-	var detached := Node.new()
-	detached.set_meta("_vextoria_instance", true)
+	_assert(not VextoriaSceneHierarchy.set_instance_parent(helper, second), "unmarked child was accepted by native parent setter")
+	_assert(not VextoriaSceneHierarchy.set_instance_parent(first, helper), "unmarked parent was accepted by native parent setter")
+	_assert(not VextoriaSceneHierarchy.set_instance_parent(first, first), "self-parenting was accepted")
+	_assert(not VextoriaSceneHierarchy.set_instance_parent(first, first_child), "cyclic reparent was accepted")
+	_assert(VextoriaSceneHierarchy.set_instance_parent(first, parent), "native no-op parent assignment failed")
+	_assert(VextoriaSceneHierarchy.set_instance_parent(detached, parent), "detached Instance attach failed")
+	_assert(VextoriaSceneHierarchy.set_instance_parent(detached, null), "native Instance detach failed")
+	_assert(detached.get_parent() == null, "native Instance detach left a Godot parent")
 	_assert_index(detached, -1)
-	detached.free()
+	_assert(VextoriaSceneHierarchy.set_instance_parent(detached, parent), "detached Instance reattach failed")
+
 	parent.free()
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered-index, helper-node exclusion, ordered move, clamp, detached")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered-index, helper-node exclusion, ordered move, native parent attach/detach, cycle rejection, clamp")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:

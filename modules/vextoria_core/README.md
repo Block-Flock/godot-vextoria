@@ -142,8 +142,14 @@ Its filtered index counts only direct child Nodes marked
 sequence without treating private Godot helper Nodes as Instances. This is the
 engine source used for Roblox-facing `Instance.Index`; the client's cached
 index is retained only for detached objects and transition notifications.
-NetworkedObject parent/lifecycle ownership remains a client compatibility
-responsibility and is not implied to be native by this helper.
+Its `set_instance_parent` operation validates marked Instance nodes, rejects
+self/cyclic parenting, and performs native attach, reparent, or detach through
+Godot's SceneTree. `Node::reparent()` emits `vextoria_reparented` once after a
+successful final attach; the existing parent-change signal still reports the
+internal remove/add transitions. These are structural operations only:
+NetworkParent bookkeeping, Roblox lifecycle events, validation policy,
+temporary-container replication, and Luau callbacks remain client
+compatibility responsibilities.
 
 Native `VextoriaInstance`, `Model`, and `Part` also expose
 `get_unique_sibling_name`. The fork resolves suffixes against tagged native
