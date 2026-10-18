@@ -158,6 +158,21 @@ network ownership, Luau callbacks, and complete `Instance` lifecycle are
 **not yet ported**. The managed client remains in service until those
 behaviors and the whole-world RBXL fixtures pass native conformance tests.
 
+## Roblox 2016 transforms and held Tool graph
+
+The fork-native `VextoriaRoblox2016TransformMath` class owns row-major
+serialized CFrame conversion, rigid-frame normalization, local-axis size
+application, Weld and Motor6D frame equations, and relative-frame conversion.
+`VextoriaRoblox2016ToolAssembly` owns the RightGrip and Tool-root equations;
+`VextoriaRoblox2016ToolAssemblyDriver` owns cached Handle-connected membership
+and applies authored weld-relative frames to live Godot `Node3D` members.
+Members are retained as weak Godot `ObjectID` values so deletion cannot leave
+stale native pointers in the hot path. The existing C# compatibility facade
+prefers these fork classes and keeps the extension implementation as a
+transitional fallback for non-Vextoria Godot builds. Backpack/equip state,
+script events, physics lifecycle, and replication remain managed and are not
+claimed as migrated by these classes.
+
 Smoke coverage:
 
 - `tests/part_runtime_smoke.gd`: native physics identity, mesh and collision
@@ -179,6 +194,9 @@ Smoke coverage:
   `Disabled` change notifications with no-op suppression, native sibling-name
   collision/suffix resolution across Folder, Model, and Part, and PackedScene
   save/reopen.
+- `tests/native_transform_math_smoke.gd`: serialized CFrame basis/position,
+  forward/reverse Weld equations, Motor6D equation, relative frames, and
+  nonuniform local size.
 - `tests/native_explorer_smoke.gd`: native SceneTree-backed hierarchy and
   bidirectional row identity, confirms identity is not duplicated in
   `TreeItem` metadata, and covers exclusion, rename, reparent, ordering,

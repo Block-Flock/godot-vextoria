@@ -35,6 +35,9 @@
 #include "vextoria_part_renderer.h"
 #include "vextoria_weld.h"
 #include "vextoria_rotate.h"
+#include "vextoria_roblox2016_tool_assembly.h"
+#include "vextoria_roblox2016_tool_assembly_driver.h"
+#include "vextoria_roblox2016_transform_math.h"
 
 #include "core/object/class_db.h"
 
@@ -73,6 +76,9 @@ void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(VextoriaPartRenderer);
 	GDREGISTER_CLASS(Weld);
 	GDREGISTER_CLASS(Rotate);
+	GDREGISTER_CLASS(VextoriaRoblox2016TransformMath);
+	GDREGISTER_CLASS(VextoriaRoblox2016ToolAssembly);
+	GDREGISTER_CLASS(VextoriaRoblox2016ToolAssemblyDriver);
 }
 
 void uninitialize_vextoria_core_module(ModuleInitializationLevel p_level) {
