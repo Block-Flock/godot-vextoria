@@ -25,6 +25,18 @@ Transform3D VextoriaRoblox2016TransformMath::rigid_frame(const Transform3D &p_fr
 	return Transform3D(p_frame.basis.orthonormalized(), p_frame.origin);
 }
 
+Transform3D VextoriaRoblox2016TransformMath::get_world_cframe(Node3D *p_node) {
+	ERR_FAIL_NULL_V(p_node, Transform3D());
+	return rigid_frame(p_node->get_global_transform());
+}
+
+void VextoriaRoblox2016TransformMath::set_world_cframe(Node3D *p_node, const Transform3D &p_cframe) {
+	ERR_FAIL_NULL(p_node);
+	// Roblox CFrame is a world-space rigid frame. Keep authored Size outside
+	// this operation, matching PartInstance's separate CFrame and Size state.
+	p_node->set_global_transform(rigid_frame(p_cframe));
+}
+
 Transform3D VextoriaRoblox2016TransformMath::with_local_size(const Transform3D &p_frame, const Vector3 &p_size) {
 	return Transform3D(p_frame.basis.orthonormalized().scaled_local(p_size), p_frame.origin);
 }
@@ -52,6 +64,8 @@ Transform3D VextoriaRoblox2016TransformMath::relative_frame(const Transform3D &p
 void VextoriaRoblox2016TransformMath::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("from_serialized_rows", "position", "row0", "row1", "row2"), &VextoriaRoblox2016TransformMath::from_serialized_rows);
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("rigid_frame", "frame"), &VextoriaRoblox2016TransformMath::rigid_frame);
+	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("get_world_cframe", "node"), &VextoriaRoblox2016TransformMath::get_world_cframe);
+	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("set_world_cframe", "node", "cframe"), &VextoriaRoblox2016TransformMath::set_world_cframe);
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("with_local_size", "frame", "size"), &VextoriaRoblox2016TransformMath::with_local_size);
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("solve_weld_part1", "part0_world", "c0", "c1"), &VextoriaRoblox2016TransformMath::solve_weld_part1);
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("solve_weld_neighbor", "known_world", "c0", "c1", "known_is_part0"), &VextoriaRoblox2016TransformMath::solve_weld_neighbor);

@@ -1,6 +1,9 @@
 extends SceneTree
 
 func _initialize() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
 	assert(ClassDB.class_exists("VextoriaRoblox2016TransformMath"), "fork-native transform math is not registered")
 	var math_class := "VextoriaRoblox2016TransformMath"
 	var angle := 0.73
@@ -33,5 +36,27 @@ func _initialize() -> void:
 	var sized: Transform3D = ClassDB.class_call_static(math_class, "with_local_size", frame, Vector3(2.0, 3.0, 4.0))
 	assert(sized.basis.x.length() == 2.0 and sized.basis.y.length() == 3.0 and sized.basis.z.length() == 4.0, "nonuniform size was not applied in local axes")
 	assert(sized.origin == position, "local size application changed the authored position")
-	print("VEXTORIA_NATIVE_TRANSFORM_MATH_PASS serialized_rows weld_forward_reverse motor6d relative local_size")
+
+	var parent := Node3D.new()
+	parent.transform = Transform3D(Basis(Vector3.UP, 0.41).scaled(Vector3(2.0, 3.0, 0.5)), Vector3(-8.0, 1.0, 5.0))
+	root.add_child(parent)
+	var child := Node3D.new()
+	child.transform = Transform3D(Basis(Vector3.RIGHT, -0.32).scaled(Vector3(1.5, 0.75, 2.0)), Vector3(1.0, 2.0, -3.0))
+	parent.add_child(child)
+	var world_cframe: Transform3D = ClassDB.class_call_static(math_class, "get_world_cframe", child)
+	assert(world_cframe.origin.is_equal_approx(child.global_position), "world CFrame getter changed the world position")
+	assert(world_cframe.basis.is_equal_approx(child.global_transform.basis.orthonormalized()), "world CFrame getter did not return the rigid world orientation")
+	var target_cframe := Transform3D(Basis(Vector3(1.0, 2.0, 3.0).normalized(), 0.93), Vector3(17.0, -4.0, 9.0))
+	ClassDB.class_call_static(math_class, "set_world_cframe", child, target_cframe)
+	assert(child.global_transform.origin.is_equal_approx(target_cframe.origin), "world CFrame setter did not place a scaled-parent child at the requested world position")
+	assert(child.global_transform.basis.orthonormalized().is_equal_approx(target_cframe.basis), "world CFrame setter did not apply the requested rigid world orientation")
+	assert(ClassDB.class_call_static(math_class, "get_world_cframe", child).is_equal_approx(target_cframe), "native world CFrame did not round-trip")
+
+	var part: Node3D = ClassDB.instantiate("Part")
+	root.add_child(part)
+	part.set("Size", Vector3(2.0, 3.0, 4.0))
+	ClassDB.class_call_static(math_class, "set_world_cframe", part, target_cframe)
+	assert(part.get("Size") == Vector3(2.0, 3.0, 4.0), "setting CFrame must not overwrite Part.Size")
+	assert(ClassDB.class_call_static(math_class, "get_world_cframe", part).is_equal_approx(target_cframe), "native Part CFrame did not round-trip")
+	print("VEXTORIA_NATIVE_TRANSFORM_MATH_PASS serialized_rows weld_forward_reverse motor6d relative local_size world_cframe_scaled_parent part_size")
 	quit(0)
