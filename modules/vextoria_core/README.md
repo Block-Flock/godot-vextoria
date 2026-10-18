@@ -146,14 +146,19 @@ engine source used for Roblox-facing `Instance.Parent`, `GetChildren()`, and
 `Index`; the managed child list is retained only for non-native compatibility
 objects. Its `set_instance_parent` operation validates marked Instance nodes,
 rejects self/cyclic parenting, and performs native attach, reparent, or detach
-through Godot's SceneTree. `can_set_instance_parent` exposes that same
-structural preflight so the client can reject invalid moves before beginning
-lifecycle bookkeeping. `Node::reparent()` emits `vextoria_reparented` once
+through Godot's SceneTree. `can_set_instance_parent` exposes structural
+preflight. The native `begin_instance_parent_change` /
+`commit_instance_parent_change` / `end_instance_parent_change` contract holds
+a per-Node reentrancy sentry across client lifecycle callbacks, permits one
+commit to the requested native parent, and rejects nested or mismatched
+mutations. The raw native setter permits only a same-parent no-op while that
+transaction is active. `Node::reparent()` emits `vextoria_reparented` once
 after a successful final attach; the existing parent-change signal still
 reports the internal remove/add transitions. These are structural operations
-only: NetworkParent bookkeeping, Roblox lifecycle events, validation policy,
-temporary-container replication, and Luau callbacks remain client
-compatibility responsibilities.
+only: NetworkParent bookkeeping, Roblox lifecycle events, parent-lock and
+class-specific validation policy, descendant event ordering, temporary-
+container replication, and Luau callbacks remain client compatibility
+responsibilities.
 
 Native `VextoriaInstance`, `Model`, and `Part` also expose
 `get_unique_sibling_name`. The fork resolves suffixes against tagged native

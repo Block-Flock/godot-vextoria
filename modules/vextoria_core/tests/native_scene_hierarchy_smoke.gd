@@ -58,8 +58,16 @@ func _initialize() -> void:
 	_assert(not _set_instance_parent(first, first), "self-parenting was accepted")
 	_assert(not _set_instance_parent(first, first_child), "cyclic reparent was accepted")
 	_assert(_set_instance_parent(first, parent), "native no-op parent assignment failed")
-	_assert(_set_instance_parent(detached, parent), "detached Instance attach failed")
-	_assert(_set_instance_parent(detached, null), "native Instance detach failed")
+	_assert(_begin_instance_parent_change(detached, parent), "native parent transaction did not begin")
+	_assert(not _begin_instance_parent_change(detached, null), "nested native parent transaction was accepted")
+	_assert(not _commit_instance_parent_change(detached, second), "native parent transaction accepted a different target")
+	_assert(not _set_instance_parent(detached, parent), "raw parent setter bypassed an active transaction")
+	_assert(_commit_instance_parent_change(detached, parent), "authorized native parent commit failed")
+	_assert(not _commit_instance_parent_change(detached, parent), "native parent transaction committed twice")
+	_end_instance_parent_change(detached)
+	_assert(_begin_instance_parent_change(detached, null), "native detach transaction did not begin")
+	_assert(_commit_instance_parent_change(detached, null), "authorized native detach commit failed")
+	_end_instance_parent_change(detached)
 	_assert(detached.get_parent() == null, "native Instance detach left a Godot parent")
 	_assert(_instance_parent_from_api(detached) == null, "native parent API retained a detached parent")
 	_assert_index(detached, -1)
@@ -70,7 +78,7 @@ func _initialize() -> void:
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered child/parent queries, helper-node exclusion, ordered move, native attach/detach, cycle rejection, clamp")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered child/parent queries, helper-node exclusion, ordered move, transactional attach/detach, reentrancy rejection, cycle rejection, clamp")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:
@@ -105,6 +113,15 @@ func _set_instance_parent(node: Node, parent: Node) -> bool:
 
 func _can_set_instance_parent(node: Node, parent: Node) -> bool:
 	return ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", node, parent)
+
+func _begin_instance_parent_change(node: Node, parent: Node) -> bool:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "begin_instance_parent_change", node, parent)
+
+func _commit_instance_parent_change(node: Node, parent: Node) -> bool:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "commit_instance_parent_change", node, parent)
+
+func _end_instance_parent_change(node: Node) -> void:
+	ClassDB.class_call_static("VextoriaSceneHierarchy", "end_instance_parent_change", node)
 
 func _assert(condition: bool, message: String) -> void:
 	if not condition:

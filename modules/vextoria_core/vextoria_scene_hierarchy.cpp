@@ -4,12 +4,20 @@
 #include "vextoria_scene_hierarchy.h"
 
 #include "core/object/class_db.h"
+#include "core/templates/hash_map.h"
 #include "scene/main/node.h"
 
 #include <algorithm>
 #include <vector>
 
 namespace {
+struct ParentChangeState {
+	ObjectID requested_parent;
+	bool commit_started = false;
+};
+
+HashMap<ObjectID, ParentChangeState> active_parent_changes;
+
 bool is_vextoria_instance_node(Node *p_node) {
 	return p_node != nullptr && p_node->has_meta("_vextoria_instance") && p_node->get_meta("_vextoria_instance").booleanize();
 }
@@ -111,22 +119,69 @@ bool VextoriaSceneHierarchy::move_instance_child(Node *p_node, int64_t p_index) 
 }
 
 bool VextoriaSceneHierarchy::set_instance_parent(Node *p_node, Node *p_parent) {
+	// Raw engine callers may change an Instance parent directly, but they may
+	// not bypass a compatibility lifecycle transaction already in progress.
+	if (p_node != nullptr && active_parent_changes.has(p_node->get_instance_id())) {
+		// Lifecycle setup may reassert the already-committed target. This is a
+		// true no-op and cannot bypass the transaction's authorized commit.
+		return p_node->get_parent() == p_parent;
+	}
+	return set_instance_parent_internal(p_node, p_parent);
+}
+
+bool VextoriaSceneHierarchy::begin_instance_parent_change(Node *p_node, Node *p_parent) {
 	if (!can_set_instance_parent(p_node, p_parent)) {
 		return false;
 	}
+	const ObjectID node_id = p_node->get_instance_id();
+	if (active_parent_changes.has(node_id)) {
+		return false;
+	}
+	ParentChangeState state;
+	state.requested_parent = p_parent != nullptr ? p_parent->get_instance_id() : ObjectID();
+	active_parent_changes.insert(node_id, state);
+	return true;
+}
 
+
+bool VextoriaSceneHierarchy::commit_instance_parent_change(Node *p_node, Node *p_parent) {
+	if (p_node == nullptr || !is_vextoria_instance_node(p_node)) {
+		return false;
+	}
+	const ObjectID node_id = p_node->get_instance_id();
+	if (!active_parent_changes.has(node_id)) {
+		return false;
+	}
+	ParentChangeState &state = active_parent_changes[node_id];
+	const ObjectID requested_parent = p_parent != nullptr ? p_parent->get_instance_id() : ObjectID();
+	if (state.commit_started || state.requested_parent != requested_parent || !can_set_instance_parent(p_node, p_parent)) {
+		return false;
+	}
+	state.commit_started = true;
+	return set_instance_parent_internal(p_node, p_parent);
+}
+
+
+void VextoriaSceneHierarchy::end_instance_parent_change(Node *p_node) {
+	if (p_node != nullptr) {
+		active_parent_changes.erase(p_node->get_instance_id());
+	}
+}
+
+bool VextoriaSceneHierarchy::set_instance_parent_internal(Node *p_node, Node *p_parent) {
+	if (!can_set_instance_parent(p_node, p_parent)) {
+		return false;
+	}
 	Node *old_parent = p_node->get_parent();
 	if (old_parent == p_parent) {
 		return true;
 	}
-
 	if (p_parent == nullptr) {
 		if (old_parent != nullptr) {
 			old_parent->remove_child(p_node);
 		}
 		return p_node->get_parent() == nullptr;
 	}
-
 	if (old_parent == nullptr) {
 		p_parent->add_child(p_node);
 	} else {
@@ -139,6 +194,9 @@ void VextoriaSceneHierarchy::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_children", "parent"), &VextoriaSceneHierarchy::get_instance_children);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_parent", "node"), &VextoriaSceneHierarchy::get_instance_parent);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("can_set_instance_parent", "node", "parent"), &VextoriaSceneHierarchy::can_set_instance_parent);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("begin_instance_parent_change", "node", "parent"), &VextoriaSceneHierarchy::begin_instance_parent_change);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("commit_instance_parent_change", "node", "parent"), &VextoriaSceneHierarchy::commit_instance_parent_change);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("end_instance_parent_change", "node"), &VextoriaSceneHierarchy::end_instance_parent_change);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_child_index", "node"), &VextoriaSceneHierarchy::get_instance_child_index);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("move_instance_child", "node", "index"), &VextoriaSceneHierarchy::move_instance_child);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("set_instance_parent", "node", "parent"), &VextoriaSceneHierarchy::set_instance_parent);
