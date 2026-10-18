@@ -37,4 +37,21 @@ public:
 	void clear_weld();
 	void set_part0(const NodePath &p_path);
 	void set_part1(const NodePath &p_path);
+	void configure_weld_endpoints(const NodePath &p_part0, const NodePath &p_part1, bool p_enabled);
+};
+
+// Roblox WeldConstraint owns one native joint node but stores the endpoint
+// relationship as the rigid Part0-relative pose captured when the endpoints
+// are first bound. Its public API deliberately has no authored C0/C1 fields.
+class WeldConstraint : public Weld {
+	GDCLASS(WeldConstraint, Weld);
+
+protected:
+	static void _bind_methods();
+	void _validate_property(PropertyInfo &p_property) const;
+
+public:
+	void configure_constraint(PhysicsBody3D *p_body_a, PhysicsBody3D *p_body_b, const Transform3D &p_part0_relative_frame, bool p_enabled = true);
+	void configure_constraint_endpoints(const NodePath &p_part0, const NodePath &p_part1, bool p_enabled);
+	void clear_constraint();
 };

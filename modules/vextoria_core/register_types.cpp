@@ -82,6 +82,7 @@ void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(VextoriaExplorerTree);
 	GDREGISTER_CLASS(VextoriaPartRenderer);
 	GDREGISTER_CLASS(Weld);
+	GDREGISTER_CLASS(WeldConstraint);
 	GDREGISTER_CLASS(Rotate);
 	GDREGISTER_CLASS(VextoriaRoblox2016TransformMath);
 	GDREGISTER_CLASS(VextoriaRoblox2016ToolAssembly);

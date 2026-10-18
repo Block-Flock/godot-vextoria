@@ -159,6 +159,18 @@ void Weld::set_part1(const NodePath &p_path) {
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Part1"));
 }
 
+void Weld::configure_weld_endpoints(const NodePath &p_part0, const NodePath &p_part1, bool p_enabled) {
+	// Keep partially-authored endpoint references during deserialization and
+	// editor changes. A WeldConstraint may receive Part0 and Part1 in separate
+	// property writes; clearing both paths after the first write would erase the
+	// first endpoint before the second arrives.
+	enabled = p_enabled;
+	set_nodes(p_part0, p_part1);
+	if (is_inside_tree()) {
+		watch_endpoints(Object::cast_to<PhysicsBody3D>(get_node_or_null(p_part0)), Object::cast_to<PhysicsBody3D>(get_node_or_null(p_part1)));
+	}
+}
+
 void Weld::_validate_property(PropertyInfo &p_property) const {
 	if (p_property.name == "node_a" || p_property.name == "node_b") {
 		p_property.usage = PROPERTY_USAGE_NONE;
@@ -182,4 +194,36 @@ void Weld::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "Part0", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "PhysicsBody3D"), "set_part0", "get_node_a");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "Part1", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "PhysicsBody3D"), "set_part1", "get_node_b");
 	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
+}
+
+void WeldConstraint::configure_constraint(PhysicsBody3D *p_body_a, PhysicsBody3D *p_body_b, const Transform3D &p_part0_relative_frame, bool p_enabled) {
+	ERR_FAIL_NULL(p_body_a);
+	ERR_FAIL_NULL(p_body_b);
+	// Generic6DOF keeps the Part0-relative frame fixed in the endpoint bodies.
+	// With C0 at Part0's origin, inverse(Part0^-1 * Part1) is the matching
+	// Part1-local anchor. The base Weld supplies one RID, anchored-endpoint
+	// invalidation, and rigid six-axis constraints.
+	Transform3D rigid_relative(p_part0_relative_frame.basis.orthonormalized(), p_part0_relative_frame.origin);
+	configure_weld(p_body_a, p_body_b, Transform3D(), rigid_relative.affine_inverse(), p_enabled);
+}
+
+void WeldConstraint::clear_constraint() {
+	clear_weld();
+}
+
+void WeldConstraint::configure_constraint_endpoints(const NodePath &p_part0, const NodePath &p_part1, bool p_enabled) {
+	configure_weld_endpoints(p_part0, p_part1, p_enabled);
+}
+
+void WeldConstraint::_validate_property(PropertyInfo &p_property) const {
+	Weld::_validate_property(p_property);
+	if (p_property.name == "C0" || p_property.name == "C1") {
+		p_property.usage &= ~PROPERTY_USAGE_EDITOR;
+	}
+}
+
+void WeldConstraint::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("configure_constraint", "part0", "part1", "part0_relative_frame", "enabled"), &WeldConstraint::configure_constraint, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("configure_constraint_endpoints", "part0", "part1", "enabled"), &WeldConstraint::configure_constraint_endpoints);
+	ClassDB::bind_method(D_METHOD("clear_constraint"), &WeldConstraint::clear_constraint);
 }
