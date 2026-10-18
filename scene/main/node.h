@@ -202,6 +202,9 @@ private:
 		Ref<SceneState> inherited_state;
 
 		Node *parent = nullptr;
+		// Transient Roblox Instance lifecycle state. Kept on Node so Vextoria
+		// Instances backed by generic Godot nodes share the same native owner.
+		bool vextoria_parent_locked = false;
 		Node *owner = nullptr;
 		HashMap<StringName, Node *> children;
 		mutable bool children_cache_dirty = false;
@@ -525,6 +528,10 @@ public:
 	void add_child(RequiredParam<Node> rp_child, bool p_force_readable_name = false, InternalMode p_internal = INTERNAL_MODE_DISABLED);
 	void add_sibling(RequiredParam<Node> rp_sibling, bool p_force_readable_name = false);
 	void remove_child(RequiredParam<Node> rp_child);
+	// Internal Vextoria lifecycle state; deliberately not a serialized/editor
+	// property and distinct from any Studio-facing edit-lock property.
+	bool is_vextoria_parent_locked() const { return data.vextoria_parent_locked; }
+	void set_vextoria_parent_locked(bool p_locked) { data.vextoria_parent_locked = p_locked; }
 
 	/// Optimal way to iterate the children of this node.
 	/// The caller is responsible to ensure:

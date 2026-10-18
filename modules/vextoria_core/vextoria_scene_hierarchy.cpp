@@ -23,19 +23,6 @@ bool is_vextoria_instance_node(Node *p_node) {
 	return p_node != nullptr && p_node->has_meta("_vextoria_instance") && p_node->get_meta("_vextoria_instance").booleanize();
 }
 
-VextoriaParentLockable *get_parent_lockable(Node *p_node) {
-	if (VextoriaInstance *instance = Object::cast_to<VextoriaInstance>(p_node)) {
-		return instance;
-	}
-	if (Model *model = Object::cast_to<Model>(p_node)) {
-		return model;
-	}
-	if (Part *part = Object::cast_to<Part>(p_node)) {
-		return part;
-	}
-	return nullptr;
-}
-
 std::vector<Node *> collect_instance_children(Node *p_parent) {
 	std::vector<Node *> instances;
 	if (p_parent == nullptr) {
@@ -86,22 +73,14 @@ bool VextoriaSceneHierarchy::can_set_instance_parent(Node *p_node, Node *p_paren
 }
 
 bool VextoriaSceneHierarchy::is_instance_parent_locked(Node *p_node) {
-	if (!is_vextoria_instance_node(p_node)) {
-		return false;
-	}
-	VextoriaParentLockable *lockable = get_parent_lockable(p_node);
-	return lockable != nullptr && lockable->is_parent_locked();
+	return is_vextoria_instance_node(p_node) && p_node->is_vextoria_parent_locked();
 }
 
 bool VextoriaSceneHierarchy::lock_instance_parent(Node *p_node) {
 	if (!is_vextoria_instance_node(p_node)) {
 		return false;
 	}
-	VextoriaParentLockable *lockable = get_parent_lockable(p_node);
-	if (lockable == nullptr) {
-		return false;
-	}
-	lockable->set_parent_locked(true);
+	p_node->set_vextoria_parent_locked(true);
 	return true;
 }
 
@@ -109,11 +88,7 @@ bool VextoriaSceneHierarchy::unlock_instance_parent(Node *p_node) {
 	if (!is_vextoria_instance_node(p_node)) {
 		return false;
 	}
-	VextoriaParentLockable *lockable = get_parent_lockable(p_node);
-	if (lockable == nullptr) {
-		return false;
-	}
-	lockable->set_parent_locked(false);
+	p_node->set_vextoria_parent_locked(false);
 	return true;
 }
 

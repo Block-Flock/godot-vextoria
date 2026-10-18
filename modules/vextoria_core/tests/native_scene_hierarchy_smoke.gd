@@ -58,6 +58,16 @@ func _initialize() -> void:
 	_assert(not _set_instance_parent(first, first), "self-parenting was accepted")
 	_assert(not _set_instance_parent(first, first_child), "cyclic reparent was accepted")
 	_assert(_set_instance_parent(first, parent), "native no-op parent assignment failed")
+	var generic_locked_node := Node.new()
+	generic_locked_node.name = "GenericLockedInstance"
+	generic_locked_node.set_meta("_vextoria_instance", true)
+	parent.add_child(generic_locked_node)
+	_assert(_lock_instance_parent(generic_locked_node), "generic Node-backed Instance did not accept ParentLocked")
+	_assert(_is_instance_parent_locked(generic_locked_node), "generic Node-backed Instance did not retain ParentLocked")
+	_assert(not _can_set_instance_parent(generic_locked_node, second), "generic Node-backed ParentLocked Instance could be reparented")
+	_assert(not _set_instance_parent(generic_locked_node, null), "generic Node-backed ParentLocked Instance could be detached")
+	_assert(_unlock_instance_parent(generic_locked_node), "generic Node-backed Instance could not clear ParentLocked")
+	_assert(_set_instance_parent(generic_locked_node, second), "unlocked generic Node-backed Instance could not be reparented")
 	for lockable_class in ["Folder", "Model", "Part"]:
 		var lockable_node := ClassDB.instantiate(lockable_class) as Node
 		_assert(lockable_node != null, "native %s class could not be instantiated for ParentLocked coverage" % lockable_class)
@@ -106,7 +116,7 @@ func _initialize() -> void:
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered child/parent queries, helper-node exclusion, ordered move, ParentLocked semantics, transactional attach/detach, reentrancy rejection, cycle rejection, clamp")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: filtered child/parent queries, helper-node exclusion, ordered move, generic/native ParentLocked semantics, transactional attach/detach, reentrancy rejection, cycle rejection, clamp")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:
