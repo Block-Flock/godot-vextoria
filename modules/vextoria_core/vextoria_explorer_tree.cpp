@@ -104,6 +104,10 @@ void VextoriaExplorerTree::_notification(int p_what) {
 				order_dirty = false;
 				_sync_order_for(source_root, node_items[source_root]);
 			}
+			if (search_filter_dirty) {
+				search_filter_dirty = false;
+				_apply_search_filter(get_root(), search_query);
+			}
 			if (pending_scroll_node.is_valid()) {
 				Node *node = Object::cast_to<Node>(ObjectDB::get_instance(pending_scroll_node));
 				pending_scroll_node = ObjectID();
@@ -114,7 +118,7 @@ void VextoriaExplorerTree::_notification(int p_what) {
 					}
 				}
 			}
-			set_process(order_dirty || pending_scroll_node.is_valid());
+			set_process(order_dirty || pending_scroll_node.is_valid() || search_filter_dirty);
 		} break;
 	}
 }
@@ -230,7 +234,8 @@ bool VextoriaExplorerTree::refresh_node_presentation(Node *p_node) {
 
 	item->set_meta(SNAME("_vextoria_presentation_initialized"), true);
 	if (!search_query.is_empty()) {
-		_apply_search_filter(get_root(), search_query);
+		search_filter_dirty = true;
+		set_process(true);
 	}
 	return true;
 }
@@ -298,7 +303,10 @@ Node *VextoriaExplorerTree::_apply_search_filter(TreeItem *p_item, const String 
 
 Node *VextoriaExplorerTree::apply_search_filter(const String &p_query) {
 	search_query = p_query.to_lower();
-	return _apply_search_filter(get_root(), search_query);
+	search_filter_dirty = false;
+	Node *first_match = _apply_search_filter(get_root(), search_query);
+	set_process(order_dirty || pending_scroll_node.is_valid() || search_filter_dirty);
+	return first_match;
 }
 
 void VextoriaExplorerTree::_add_subtree(Node *p_node, bool p_recurse) {
@@ -359,6 +367,7 @@ void VextoriaExplorerTree::_clear_items() {
 	node_items.clear();
 	item_nodes.clear();
 	order_dirty = false;
+	search_filter_dirty = false;
 	pending_scroll_node = ObjectID();
 	set_process(false);
 }
@@ -413,6 +422,10 @@ void VextoriaExplorerTree::_node_removed(Node *p_node) {
 			parent->remove_child(item);
 		}
 		memdelete(item);
+		if (!search_query.is_empty()) {
+			search_filter_dirty = true;
+			set_process(true);
+		}
 	}
 }
 
@@ -420,6 +433,10 @@ void VextoriaExplorerTree::_node_renamed(Node *p_node) {
 	TreeItem **item_ptr = node_items.getptr(p_node);
 	if (item_ptr) {
 		(*item_ptr)->set_text(0, p_node->get_name());
+		if (!search_query.is_empty()) {
+			search_filter_dirty = true;
+			set_process(true);
+		}
 	}
 }
 

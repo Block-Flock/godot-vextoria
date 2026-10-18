@@ -114,6 +114,37 @@ func _run() -> void:
 	search_result = explorer.call("apply_search_filter", "no such instance")
 	assert(search_result == null, "native search returned a result for a non-matching query")
 	assert(not part_item.is_visible(), "native no-match search left a non-matching row visible")
+	search_result = explorer.call("apply_search_filter", "red")
+	assert(search_result == part, "native search did not recover after a no-match query")
+	part.name = "Blue Door"
+	await process_frame
+	await process_frame
+	assert(not part_item.is_visible(), "renaming a match did not hide its row during an active search")
+	assert(not folder_item.is_visible() and not model_item.is_visible(), "renaming a match left stale visible ancestors")
+	part.name = "Red Door"
+	await process_frame
+	await process_frame
+	assert(part_item.is_visible() and folder_item.is_visible() and model_item.is_visible(), "renaming a row into a match did not reveal its ancestors")
+	var red_sibling: Node3D = ClassDB.instantiate("Model")
+	red_sibling.name = "Red Window"
+	red_sibling.set_meta("_vextoria_instance", true)
+	model.add_child(red_sibling)
+	await process_frame
+	await process_frame
+	var red_sibling_item: TreeItem = explorer.call("get_item_for_node", red_sibling)
+	assert(red_sibling_item != null and red_sibling_item.is_visible(), "newly admitted matching row stayed hidden during active search")
+	part.name = "Blue Door"
+	await process_frame
+	await process_frame
+	assert(not folder_item.is_visible() and model_item.is_visible(), "branch refilter hid a separate matching sibling or retained a stale branch")
+	red_sibling.name = "Blue Window"
+	await process_frame
+	await process_frame
+	assert(not red_sibling_item.is_visible() and not model_item.is_visible(), "renaming the last match left a stale visible ancestor")
+	red_sibling.name = "Red Window"
+	red_sibling.free()
+	await process_frame
+	assert(not model_item.is_visible(), "removing the last match left its former ancestors visible")
 	explorer.call("apply_search_filter", "")
 	assert(not folder_item.is_visible(), "clearing native search ignored Creator model visibility state")
 	assert(part_item.is_visible(), "clearing native search failed to restore an ordinary row")
@@ -152,5 +183,5 @@ func _run() -> void:
 	explorer.call("set_source_root", null)
 	detached.free()
 	explorer.free()
-	print("VEXTORIA_NATIVE_EXPLORER_PASS: hierarchy, identity, rename, reparent, order, removal")
+	print("VEXTORIA_NATIVE_EXPLORER_PASS: hierarchy, identity, rename, incremental_search, reparent, order, removal")
 	quit(0)

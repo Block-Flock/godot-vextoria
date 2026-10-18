@@ -42,6 +42,7 @@ class VextoriaExplorerTree : public Tree {
 	String search_query;
 	ObjectID pending_scroll_node;
 	bool order_dirty = false;
+	bool search_filter_dirty = false;
 
 	void _add_subtree(Node *p_node, bool p_recurse = true);
 	void _remove_item(TreeItem *p_item);
