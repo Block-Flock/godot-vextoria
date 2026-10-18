@@ -51,6 +51,8 @@
 #include "scene/resources/shader.h"
 #include "scene/resources/surface_tool.h"
 
+#include "vextoria_roblox2016_transform_math.h"
+
 #include <cstdint>
 
 static const StringName &get_vextoria_tags_meta() {
@@ -276,7 +278,67 @@ void VextoriaSpatialInstance::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 }
 
+Node *Model::get_primary_part() {
+	Node *primary_part = Object::cast_to<Node>(ObjectDB::get_instance(primary_part_id));
+	if (primary_part != nullptr && !is_ancestor_of(primary_part)) {
+		// Roblox drops a user-selected PrimaryPart when that Part is removed
+		// from the Model. Lazily enforce the same invariant for native reparenting.
+		primary_part_id = ObjectID();
+		emit_signal(SNAME("vextoria_property_changed"), SNAME("PrimaryPart"));
+		emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("PrimaryPart"), primary_part, Variant());
+		return nullptr;
+	}
+	return primary_part;
+}
+
+void Model::set_primary_part(Node *p_primary_part) {
+	Part *part = Object::cast_to<Part>(p_primary_part);
+	ERR_FAIL_COND_MSG(p_primary_part != nullptr && part == nullptr, "Model.PrimaryPart must reference a native Part.");
+	ERR_FAIL_COND_MSG(part != nullptr && !is_ancestor_of(part), "Model.PrimaryPart must be a descendant of the Model.");
+
+	Node *old_primary_part = get_primary_part();
+	if (old_primary_part == part) {
+		return;
+	}
+	primary_part_id = part != nullptr ? part->get_instance_id() : ObjectID();
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("PrimaryPart"));
+	emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("PrimaryPart"), old_primary_part, part);
+}
+
+Transform3D Model::get_primary_part_cframe() {
+	Part *part = Object::cast_to<Part>(get_primary_part());
+	if (part == nullptr) {
+		return Transform3D();
+	}
+	return VextoriaRoblox2016TransformMath::rigid_frame(part->get_global_transform());
+}
+
+bool Model::set_primary_part_cframe(const Transform3D &p_cframe) {
+	Part *part = Object::cast_to<Part>(get_primary_part());
+	if (part == nullptr) {
+		return false;
+	}
+
+	const Transform3D target = VextoriaRoblox2016TransformMath::rigid_frame(p_cframe);
+	const Transform3D current_primary = VextoriaRoblox2016TransformMath::rigid_frame(part->get_global_transform());
+	if (target.is_equal_approx(current_primary)) {
+		return true;
+	}
+
+	// A Model is a native spatial container in Vextoria. Applying the rigid
+	// primary-part delta to that one Godot transform moves all descendant Parts
+	// while preserving each authored relative CFrame and its independent Size.
+	const Transform3D delta = target * current_primary.affine_inverse();
+	set_global_transform(delta * get_global_transform());
+	return true;
+}
+
 void Model::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_primary_part"), &Model::get_primary_part);
+	ClassDB::bind_method(D_METHOD("set_primary_part", "part"), &Model::set_primary_part);
+	ClassDB::bind_method(D_METHOD("get_primary_part_cframe"), &Model::get_primary_part_cframe);
+	ClassDB::bind_method(D_METHOD("set_primary_part_cframe", "cframe"), &Model::set_primary_part_cframe);
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "PrimaryPart", PROPERTY_HINT_NODE_TYPE, "Part"), "set_primary_part", "get_primary_part");
 }
 
 Part::Part() {

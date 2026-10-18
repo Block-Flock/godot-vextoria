@@ -197,10 +197,16 @@ public:
 class Model : public VextoriaSpatialInstance {
 	GDCLASS(Model, VextoriaSpatialInstance);
 
+	ObjectID primary_part_id;
+
 protected:
 	static void _bind_methods();
 
 public:
+	Node *get_primary_part();
+	void set_primary_part(Node *p_primary_part);
+	Transform3D get_primary_part_cframe();
+	bool set_primary_part_cframe(const Transform3D &p_cframe);
 };
 
 class Folder : public VextoriaInstance {
