@@ -131,7 +131,6 @@ void VextoriaExplorerTree::_add_subtree(Node *p_node, bool p_recurse) {
 	if ((p_node == source_root || p_node->has_meta(SNAME("_vextoria_instance"))) && !node_items.has(p_node)) {
 		TreeItem *item = create_item(parent_item);
 		item->set_text(0, p_node->get_name());
-		item->set_metadata(0, p_node);
 		node_items.insert(p_node, item);
 		item_nodes.insert(item, p_node);
 		emit_signal(SNAME("item_added"), p_node, item);

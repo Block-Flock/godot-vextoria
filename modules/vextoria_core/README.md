@@ -168,6 +168,7 @@ Smoke coverage:
 - `tests/native_hierarchy_smoke.gd`: Model/Folder/Script/Part ClassDB ancestry,
   real Godot parentage, transform/visibility pass-through, CFrame-preserving
   Folder reparent, ordinary-Node isolation, and PackedScene save/reopen.
-- `tests/native_explorer_smoke.gd`: native SceneTree-backed hierarchy, identity,
-  exclusion, rename, reparent, ordering, removal, detached-root admission, and
-  out-of-order ancestor admission.
+- `tests/native_explorer_smoke.gd`: native SceneTree-backed hierarchy and
+  bidirectional row identity, confirms identity is not duplicated in
+  `TreeItem` metadata, and covers exclusion, rename, reparent, ordering,
+  removal, detached-root admission, and out-of-order ancestor admission.

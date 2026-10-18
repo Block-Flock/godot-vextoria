@@ -38,6 +38,7 @@ func _run() -> void:
 	assert(explorer.call("get_item_for_node", implementation) == null, "implementation Node leaked into Explorer")
 	assert(part_item.get_child_count() == 0, "native Part internals leaked into Explorer")
 	assert(explorer.call("get_node_for_item", part_item) == part, "item identity did not resolve to native Part")
+	assert(part_item.get_metadata(0) == null, "native node identity was duplicated in TreeItem metadata")
 	var excluded := Node.new()
 	excluded.set_meta("_vextoria_instance", true)
 	excluded.set_meta("_vextoria_explorer_excluded", true)
