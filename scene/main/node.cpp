@@ -1752,6 +1752,9 @@ void Node::remove_child(RequiredParam<Node> rp_child) {
 	ERR_FAIL_COND_MSG(data.blocked > 0, "Parent node is busy adding/removing children, `remove_child()` can't be called at this time. Consider using `remove_child.call_deferred(child)` instead.");
 	ERR_FAIL_COND(p_child->data.parent != this);
 	ERR_FAIL_COND_MSG(p_child->_is_vextoria_instance_node() && p_child->data.vextoria_parent_locked, vformat("The Parent property of Vextoria Instance '%s' is locked.", p_child->get_name()));
+	if (p_child->_is_vextoria_instance_node() && !p_child->data.vextoria_parent_transition_preannounced) {
+		p_child->emit_signal(SNAME("vextoria_parent_changing"), this, Variant());
+	}
 
 	/**
 	 *  Do not change the data.internal_children*cache counters here.
@@ -2092,8 +2095,13 @@ void Node::reparent(RequiredParam<Node> rp_parent, bool p_keep_global_transform)
 		}
 	}
 
+	if (_is_vextoria_instance_node()) {
+		emit_signal(SNAME("vextoria_parent_changing"), old_parent, p_parent);
+		data.vextoria_parent_transition_preannounced = true;
+	}
 	data.parent->remove_child(this);
 	p_parent->add_child(this);
+	data.vextoria_parent_transition_preannounced = false;
 
 	// Reassign the old owner to those found nodes.
 	if (preserve_owner) {
@@ -4051,6 +4059,9 @@ void Node::_bind_methods() {
 
 	ADD_SIGNAL(MethodInfo("child_order_changed"));
 	ADD_SIGNAL(MethodInfo("vextoria_parent_changed"));
+	ADD_SIGNAL(MethodInfo("vextoria_parent_changing",
+		PropertyInfo(Variant::OBJECT, "old_parent", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node"),
+		PropertyInfo(Variant::OBJECT, "new_parent", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));
 	ADD_SIGNAL(MethodInfo("vextoria_reparented"));
 	ADD_SIGNAL(MethodInfo("replacing_by", PropertyInfo(Variant::OBJECT, "node", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));
 	ADD_SIGNAL(MethodInfo("editor_description_changed", PropertyInfo(Variant::OBJECT, "node", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));

@@ -205,6 +205,9 @@ private:
 		// Transient Roblox Instance lifecycle state. Kept on Node so Vextoria
 		// Instances backed by generic Godot nodes share the same native owner.
 		bool vextoria_parent_locked = false;
+		// Node::reparent announces the complete old/new transition before calling
+		// remove_child(), so that call must not announce a second null-parent move.
+		bool vextoria_parent_transition_preannounced = false;
 		Node *owner = nullptr;
 		HashMap<StringName, Node *> children;
 		mutable bool children_cache_dirty = false;
