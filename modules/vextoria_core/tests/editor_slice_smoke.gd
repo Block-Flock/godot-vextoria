@@ -32,7 +32,7 @@ func _find_node_named(parent: Node, expected_name: String) -> Node:
 			return found
 	return null
 
-func _pick_native_part(part: Node3D, camera: Camera3D, surface: Control, root: Node, local_point := Vector3.ZERO) -> bool:
+func _pick_native_part(part: Node3D, camera: Camera3D, surface: Control, root: Node, explorer_item: TreeItem, local_point := Vector3.ZERO) -> bool:
 	var selection := EditorInterface.get_selection()
 	selection.clear()
 	EditorInterface.inspect_object(root)
@@ -53,7 +53,7 @@ func _pick_native_part(part: Node3D, camera: Camera3D, surface: Control, root: N
 	for attempt in range(10):
 		await get_tree().process_frame
 		if selection.get_selected_nodes() == [part] and EditorInterface.get_inspector().get_edited_object() == part:
-			return true
+			return explorer_item.is_selected(0)
 	return false
 
 func _run_smoke() -> void:
@@ -168,8 +168,18 @@ func _run_smoke() -> void:
 	if explorer_tree == null:
 		_fail("SceneTreeDock did not display the created native Part")
 		return
-	explorer_tree.set_selected(part_tree_item, 0)
+	selection.clear()
 	await get_tree().process_frame
+	explorer_tree.set_selected(part_tree_item, 0)
+	var tree_selection_reached_editor := false
+	for attempt in range(10):
+		await get_tree().process_frame
+		if selection.get_selected_nodes() == [part]:
+			tree_selection_reached_editor = true
+			break
+	if not tree_selection_reached_editor:
+		_fail("SceneTreeDock selection did not select the same native Part in EditorSelection")
+		return
 
 	EditorInterface.inspect_object(part)
 	await get_tree().process_frame
@@ -220,16 +230,16 @@ func _run_smoke() -> void:
 		return
 	# Viewport picking follows the rendered mesh, not runtime CanCollide.
 	part.set("CanCollide", false)
-	if not await _pick_native_part(part, camera, surface, root):
-		_fail("viewport click did not select/inspect the visible native Part; selected=" + str(selection.get_selected_nodes()))
+	if not await _pick_native_part(part, camera, surface, root, part_tree_item):
+		_fail("viewport click did not select/inspect the same visible native Part in EditorSelection, SceneTreeDock, and Inspector; selected=" + str(selection.get_selected_nodes()))
 		return
 	part.set("Locked", true)
-	if await _pick_native_part(part, camera, surface, root):
+	if await _pick_native_part(part, camera, surface, root, part_tree_item):
 		_fail("viewport picking ignored native Part Locked")
 		return
 	part.set("Locked", false)
 	part.set("Shape", 4)
-	if not await _pick_native_part(part, camera, surface, root):
+	if not await _pick_native_part(part, camera, surface, root, part_tree_item):
 		_fail("viewport picking lost native Wedge after geometry replacement")
 		return
 	var pick_mesh := BoxMesh.new()
@@ -241,15 +251,15 @@ func _run_smoke() -> void:
 	# baked into Part-local picking triangles, rather than silently discarded.
 	part.set("Size", Vector3(4, 3, 2))
 	part.rotation = Vector3(0.15, 0.3, -0.1)
-	if not await _pick_native_part(part, camera, surface, root, Vector3(1.5, 0, 0)):
+	if not await _pick_native_part(part, camera, surface, root, part_tree_item, Vector3(1.5, 0, 0)):
 		_fail("viewport picking did not follow the scaled/rotated native resource mesh")
 		return
 	pick_mesh.size = Vector3(2, 1, 1)
-	if not await _pick_native_part(part, camera, surface, root, Vector3(3, 0, 0)):
+	if not await _pick_native_part(part, camera, surface, root, part_tree_item, Vector3(3, 0, 0)):
 		_fail("viewport picking did not refresh after an authored mesh revision")
 		return
 	part.set("GeometryMesh", ArrayMesh.new())
-	if await _pick_native_part(part, camera, surface, root):
+	if await _pick_native_part(part, camera, surface, root, part_tree_item):
 		_fail("viewport retained picking triangles after the native visual became empty")
 		return
 	part.set("Shape", 0)
@@ -258,7 +268,7 @@ func _run_smoke() -> void:
 	part.set("Size", Vector3(4, 1, 2))
 	part.rotation = Vector3.ZERO
 	part.set("CanCollide", true)
-	if not await _pick_native_part(part, camera, surface, root):
+	if not await _pick_native_part(part, camera, surface, root, part_tree_item):
 		_fail("viewport picking did not recover after returning to native Brick")
 		return
 	var editor_capture := OS.get_environment("VEXTORIA_NATIVE_EDITOR_CAPTURE")
@@ -353,5 +363,5 @@ func _run_smoke() -> void:
 	selection.clear()
 	EditorInterface.inspect_object(root)
 	await get_tree().process_frame
-	print(PASS_MARKER + ": viewport picking, SceneTreeDock, Inspector, property/transform undo, native save/reopen, creation undo")
+	print(PASS_MARKER + ": viewport/SceneTreeDock/EditorSelection identity, Inspector, property/transform undo, native save/reopen, creation undo")
 	get_tree().quit(0)
