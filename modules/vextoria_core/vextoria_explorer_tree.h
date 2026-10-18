@@ -51,6 +51,7 @@ class VextoriaExplorerTree : public Tree {
 	void _node_removed(Node *p_node);
 	void _node_renamed(Node *p_node);
 	void _tree_changed();
+	void _multi_selected(TreeItem *p_item, int p_column, bool p_selected);
 	Node *_apply_search_filter(TreeItem *p_item, const String &p_query);
 
 protected:

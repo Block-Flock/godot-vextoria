@@ -35,6 +35,10 @@ func _run() -> void:
 	var model_item: TreeItem = explorer.call("get_item_for_node", model)
 	var folder_item: TreeItem = explorer.call("get_item_for_node", folder)
 	var part_item: TreeItem = explorer.call("get_item_for_node", part)
+	var native_selection_events: Array = []
+	explorer.connect("instance_selected", func(node: Node, selected: bool) -> void:
+		native_selection_events.append([node, selected])
+	)
 	assert(model_item.get_parent() == source_item, "Model is not under Workspace")
 	assert(model_item.get_icon(0) == model.get_meta("_vextoria_explorer_icon"), "native Tree did not apply the Node-owned class icon")
 	assert(model_item.is_editable(0), "native Tree did not apply Node-owned rename policy")
@@ -48,6 +52,9 @@ func _run() -> void:
 	assert(part_item.get_child_count() == 0, "native Part internals leaked into Explorer")
 	assert(not part_item.is_editable(0), "native Tree made a row editable without Node presentation metadata")
 	assert(explorer.call("get_node_for_item", part_item) == part, "item identity did not resolve to native Part")
+	explorer.emit_signal("multi_selected", part_item, 0, true)
+	explorer.emit_signal("multi_selected", part_item, 0, false)
+	assert(native_selection_events == [[part, true], [part, false]], "native Tree did not emit selection changes with mapped gameplay Node identity")
 	assert(part_item.get_metadata(0) == null, "native node identity was duplicated in TreeItem metadata")
 	var excluded := Node.new()
 	excluded.set_meta("_vextoria_instance", true)

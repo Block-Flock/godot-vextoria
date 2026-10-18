@@ -145,8 +145,13 @@ and native class behavior, not a mirrored Creator Explorer.
 source Godot `Node` subtree. It admits gameplay nodes tagged
 `_vextoria_instance`, ignores internal implementation children and excluded
 subtrees, and maintains Node/TreeItem identity across name, order, and parent
-changes. The client still adapts Creator actions and display metadata in C#;
-this does not yet make the entire gameplay object API native.
+changes. It owns row presentation mechanics (collapse, class icon, rename
+policy, linked-model visibility/color, and linked/locked badges), native
+search, and the TreeItem-to-gameplay-Node selection event. The client publishes
+Roblox/Creator metadata and adapts selection to gameplay callbacks such as
+gizmos, properties, and Luau signals; it does not maintain a duplicate native
+Explorer hierarchy. This does not yet make the entire gameplay object API
+native or replace the runtime Creator UI with Godot's editor SceneTreeDock.
 When a detached Creator world admits a descendant before its parent has been
 explicitly admitted, `ensure_item_for_node` creates marked ancestors first so
 the item does not attach to the wrong branch.

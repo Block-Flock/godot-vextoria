@@ -75,11 +75,13 @@ void VextoriaExplorerTree::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "source_root", PROPERTY_HINT_NODE_TYPE, "Node", PROPERTY_USAGE_NONE), "set_source_root", "get_source_root");
 	ADD_SIGNAL(MethodInfo("item_added", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::OBJECT, "item")));
 	ADD_SIGNAL(MethodInfo("item_removing", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::OBJECT, "item")));
+	ADD_SIGNAL(MethodInfo("instance_selected", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::BOOL, "selected")));
 }
 
 void VextoriaExplorerTree::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE: {
+			connect(SNAME("multi_selected"), callable_mp(this, &VextoriaExplorerTree::_multi_selected));
 			get_tree()->connect(SNAME("node_added"), callable_mp(this, &VextoriaExplorerTree::_node_added));
 			get_tree()->connect(SNAME("node_removed"), callable_mp(this, &VextoriaExplorerTree::_node_removed));
 			get_tree()->connect(SNAME("node_renamed"), callable_mp(this, &VextoriaExplorerTree::_node_renamed));
@@ -90,6 +92,7 @@ void VextoriaExplorerTree::_notification(int p_what) {
 			}
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
+			disconnect(SNAME("multi_selected"), callable_mp(this, &VextoriaExplorerTree::_multi_selected));
 			get_tree()->disconnect(SNAME("node_added"), callable_mp(this, &VextoriaExplorerTree::_node_added));
 			get_tree()->disconnect(SNAME("node_removed"), callable_mp(this, &VextoriaExplorerTree::_node_removed));
 			get_tree()->disconnect(SNAME("node_renamed"), callable_mp(this, &VextoriaExplorerTree::_node_renamed));
@@ -102,6 +105,16 @@ void VextoriaExplorerTree::_notification(int p_what) {
 				_sync_order_for(source_root, node_items[source_root]);
 			}
 		} break;
+	}
+}
+
+void VextoriaExplorerTree::_multi_selected(TreeItem *p_item, int p_column, bool p_selected) {
+	if (p_column != 0) {
+		return;
+	}
+	Node *node = get_node_for_item(p_item);
+	if (node != nullptr) {
+		emit_signal(SNAME("instance_selected"), node, p_selected);
 	}
 }
 
