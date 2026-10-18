@@ -1689,6 +1689,7 @@ void Node::_add_child_nocheck(Node *p_child, const StringName &p_name, InternalM
 	}
 
 	p_child->data.parent = this;
+	p_child->emit_signal(SNAME("vextoria_parent_changed"));
 
 	if (!data.children_cache_dirty && can_push_back) {
 		data.children_cache.push_back(p_child);
@@ -1774,6 +1775,7 @@ void Node::remove_child(RequiredParam<Node> rp_child) {
 
 	p_child->data.parent = nullptr;
 	p_child->data.index = -1;
+	p_child->emit_signal(SNAME("vextoria_parent_changed"));
 
 	notification(NOTIFICATION_CHILD_ORDER_CHANGED);
 	emit_signal(SNAME("child_order_changed"));
@@ -4032,6 +4034,7 @@ void Node::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("child_exiting_tree", PropertyInfo(Variant::OBJECT, "node", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));
 
 	ADD_SIGNAL(MethodInfo("child_order_changed"));
+	ADD_SIGNAL(MethodInfo("vextoria_parent_changed"));
 	ADD_SIGNAL(MethodInfo("replacing_by", PropertyInfo(Variant::OBJECT, "node", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));
 	ADD_SIGNAL(MethodInfo("editor_description_changed", PropertyInfo(Variant::OBJECT, "node", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));
 	ADD_SIGNAL(MethodInfo("editor_state_changed"));

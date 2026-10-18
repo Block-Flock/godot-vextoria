@@ -60,6 +60,7 @@ func _run() -> void:
 	assert(explorer.call("get_item_for_node", part) != null, "nested Part vanished during reparent")
 	source.move_child(second, 0)
 	await process_frame
+	await process_frame
 	assert(source_item.get_first_child() == explorer.call("get_item_for_node", second), "native order did not follow SceneTree")
 	folder.free()
 	assert(not is_instance_valid(moved_item), "removed Folder item remained in Explorer")

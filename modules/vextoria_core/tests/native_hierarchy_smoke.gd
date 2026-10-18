@@ -1,5 +1,11 @@
 extends SceneTree
 
+class ParentChangeCounter extends RefCounted:
+	var count := 0
+
+	func record() -> void:
+		count += 1
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -22,7 +28,11 @@ func _run() -> void:
 	assert(model.has_meta("_edit_lock_"), "Model must use Godot's editor lock")
 	var folder: Node = ClassDB.instantiate("Folder")
 	folder.name = "Details"
+	assert(folder.has_signal("vextoria_parent_changed"), "native Node must expose the Vextoria parent-change bridge")
+	var parent_changes := ParentChangeCounter.new()
+	folder.connect("vextoria_parent_changed", Callable(parent_changes, "record"))
 	model.add_child(folder)
+	assert(parent_changes.count == 1, "adding a child must emit exactly one native parent-change signal")
 	folder.owner = scene_root
 	var script: Node = ClassDB.instantiate("VextoriaScript")
 	script.name = "LampScript"
@@ -58,14 +68,15 @@ func _run() -> void:
 	other_model.position = Vector3(20, -3, 6)
 	var world_before_reparent := part.global_transform
 	folder.reparent(other_model, true)
+	assert(parent_changes.count == 3, "reparent must report detach and attach to native observers")
 	assert(folder.get_parent() == other_model and part.get_parent_node_3d() == other_model, "reparent must update logical and spatial ancestry")
 	assert(part.global_transform.is_equal_approx(world_before_reparent), "Folder reparent must preserve Part world CFrame")
 	other_model.position += Vector3(3, 0, 0)
 	assert(part.global_position.is_equal_approx(world_before_reparent.origin + Vector3(3, 0, 0)), "new Model transform must reach Part")
 	var world_before_return := part.global_transform
 	folder.reparent(model, true)
+	assert(parent_changes.count == 5, "return reparent must report both native parent transitions")
 	assert(part.global_transform.is_equal_approx(world_before_return), "return reparent must preserve Part world CFrame")
-
 	var packed := PackedScene.new()
 	assert(packed.pack(scene_root) == OK, "native hierarchy must pack")
 	var path := "user://native_hierarchy_smoke_%d.tscn" % Time.get_ticks_usec()
@@ -83,7 +94,11 @@ func _run() -> void:
 	assert(reopened_part.get_class() == "Part" and reopened_part.get("Size") == Vector3(2, 3, 1), "Part must retain native physics identity")
 	assert(reopened_part.get_parent_node_3d() == reopened_model, "saved hierarchy must retain spatial pass-through")
 	assert(reopened_model.get("Locked") and reopened_script.get("Source") == "return true", "native properties must survive save/reopen")
+	model.remove_child(folder)
+	assert(parent_changes.count == 6 and folder.get_parent() == null, "remove_child must report the final detached state")
+	model.add_child(folder)
+	assert(parent_changes.count == 7 and folder.get_parent() == model, "re-adding a detached child must report the new parent")
 	assert(DirAccess.remove_absolute(ProjectSettings.globalize_path(path)) == OK, "smoke output cleanup failed")
 	reopened_root.free()
-	print("VEXTORIA_NATIVE_HIERARCHY_PASS: spatial Model, non-spatial Folder/Script, real Part, save/reopen")
+	print("VEXTORIA_NATIVE_HIERARCHY_PASS: spatial Model, non-spatial Folder/Script, real Part, parent-change bridge, save/reopen")
 	quit(0)
