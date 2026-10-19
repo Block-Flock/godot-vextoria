@@ -171,6 +171,40 @@ func _initialize() -> void:
 	_assert(not _set_instance_parent(first, first), "self-parenting was accepted")
 	_assert(not _set_instance_parent(first, first_child), "cyclic reparent was accepted")
 	_assert(_set_instance_parent(first, parent), "native no-op parent assignment failed")
+	var internal_order_parent := Node.new()
+	internal_order_parent.name = "InternalOrderParent"
+	internal_order_parent.set_meta("_vextoria_instance", true)
+	root.add_child(internal_order_parent)
+	var internal_front := Node.new()
+	internal_front.name = "InternalFront"
+	internal_order_parent.add_child(internal_front, false, Node.INTERNAL_MODE_FRONT)
+	var ordered_a := Node.new()
+	ordered_a.name = "OrderedA"
+	ordered_a.set_meta("_vextoria_instance", true)
+	var internal_helper := Node.new()
+	internal_helper.name = "InternalOrderHelper"
+	var ordered_b := Node.new()
+	ordered_b.name = "OrderedB"
+	ordered_b.set_meta("_vextoria_instance", true)
+	var ordered_c := Node.new()
+	ordered_c.name = "OrderedC"
+	ordered_c.set_meta("_vextoria_instance", true)
+	internal_order_parent.add_child(ordered_a)
+	internal_order_parent.add_child(internal_helper)
+	internal_order_parent.add_child(ordered_b)
+	internal_order_parent.add_child(ordered_c)
+	var internal_back := Node.new()
+	internal_back.name = "InternalBack"
+	internal_order_parent.add_child(internal_back, false, Node.INTERNAL_MODE_BACK)
+	_assert(_move_instance_child(ordered_c, 0), "filtered reorder failed with internal front/back children")
+	_assert(_instance_names_from_api(internal_order_parent) == ["OrderedC", "OrderedA", "OrderedB"],
+		"internal children changed filtered Roblox Instance ordering")
+	var all_internal_order_children := internal_order_parent.get_children(true)
+	_assert(all_internal_order_children[0] == internal_front and all_internal_order_children[all_internal_order_children.size() - 1] == internal_back,
+		"filtered reorder moved Godot internal front/back children")
+	_assert(internal_helper.get_parent() == internal_order_parent,
+		"filtered reorder detached an unmarked Godot helper")
+	internal_order_parent.free()
 	var generic_locked_node := Node.new()
 	generic_locked_node.name = "GenericLockedInstance"
 	generic_locked_node.set_meta("_vextoria_instance", true)

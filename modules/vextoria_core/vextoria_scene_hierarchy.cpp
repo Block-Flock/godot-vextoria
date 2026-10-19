@@ -328,7 +328,11 @@ bool VextoriaSceneHierarchy::move_instance_child(Node *p_node, int64_t p_index) 
 		if (current[i] == instances[i]) {
 			continue;
 		}
-		parent->move_child(instances[i], current[i]->get_index());
+		// move_child() expects an index in the non-internal sibling sequence
+		// for ordinary children. get_index() defaults to counting internal
+		// children, which can exceed that sequence and be rejected (or reorder
+		// the wrong sibling) when Godot has front/back internal nodes attached.
+		parent->move_child(instances[i], current[i]->get_index(false));
 	}
 	return true;
 }
