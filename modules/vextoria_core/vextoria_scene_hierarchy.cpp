@@ -19,19 +19,27 @@ struct ParentChangeState {
 
 HashMap<ObjectID, ParentChangeState> active_parent_changes;
 
-std::vector<Node *> collect_instance_children(Node *p_parent) {
-	std::vector<Node *> instances;
+void collect_instance_children(Node *p_parent, std::vector<Node *> &r_instances) {
 	if (p_parent == nullptr) {
-		return instances;
+		return;
 	}
-	const int32_t child_count = p_parent->get_child_count();
-	instances.reserve(child_count);
+	const int32_t child_count = p_parent->get_child_count(false);
 	for (int32_t i = 0; i < child_count; i++) {
-		Node *child = p_parent->get_child(i);
+		Node *child = p_parent->get_child(i, false);
 		if (VextoriaSceneHierarchy::is_instance_node(child)) {
-			instances.push_back(child);
+			r_instances.push_back(child);
+		} else {
+			// Godot implementation Nodes are transparent in the Roblox Instance
+			// hierarchy. Stop at the first Instance so its descendants remain
+			// children of that Instance rather than being flattened here.
+			collect_instance_children(child, r_instances);
 		}
 	}
+}
+
+std::vector<Node *> collect_instance_children(Node *p_parent) {
+	std::vector<Node *> instances;
+	collect_instance_children(p_parent, instances);
 	return instances;
 }
 
@@ -42,23 +50,19 @@ std::vector<Node *> collect_instance_descendants(Node *p_root) {
 	}
 
 	std::vector<Node *> pending;
-	pending.reserve(p_root->get_child_count());
-	for (int32_t i = p_root->get_child_count() - 1; i >= 0; --i) {
-		Node *child = p_root->get_child(i);
-		if (VextoriaSceneHierarchy::is_instance_node(child)) {
-			pending.push_back(child);
-		}
+	std::vector<Node *> root_children = collect_instance_children(p_root);
+	pending.reserve(root_children.size());
+	for (auto it = root_children.rbegin(); it != root_children.rend(); ++it) {
+		pending.push_back(*it);
 	}
 	while (!pending.empty()) {
 		Node *current = pending.back();
 		pending.pop_back();
 		descendants.push_back(current);
 
-		for (int32_t i = current->get_child_count() - 1; i >= 0; --i) {
-			Node *child = current->get_child(i);
-			if (VextoriaSceneHierarchy::is_instance_node(child)) {
-				pending.push_back(child);
-			}
+		std::vector<Node *> children = collect_instance_children(current);
+		for (auto it = children.rbegin(); it != children.rend(); ++it) {
+			pending.push_back(*it);
 		}
 	}
 	return descendants;
@@ -136,13 +140,8 @@ Array VextoriaSceneHierarchy::collect_descendant_event_dispatch_plan(Node *p_mov
 }
 
 Node *VextoriaSceneHierarchy::find_instance_child_by_name(Node *p_parent, const String &p_name) {
-	if (p_parent == nullptr) {
-		return nullptr;
-	}
-	const int32_t child_count = p_parent->get_child_count();
-	for (int32_t i = 0; i < child_count; i++) {
-		Node *child = p_parent->get_child(i);
-		if (is_instance_node(child) && child->get_name() == p_name) {
+	for (Node *child : collect_instance_children(p_parent)) {
+		if (child->get_name() == p_name) {
 			return child;
 		}
 	}
@@ -176,8 +175,12 @@ Node *VextoriaSceneHierarchy::get_instance_parent(Node *p_node) {
 	if (!is_instance_node(p_node)) {
 		return nullptr;
 	}
-	Node *parent = p_node->get_parent();
-	return is_instance_node(parent) ? parent : nullptr;
+	for (Node *parent = p_node->get_parent(); parent != nullptr; parent = parent->get_parent()) {
+		if (is_instance_node(parent)) {
+			return parent;
+		}
+	}
+	return nullptr;
 }
 
 bool VextoriaSceneHierarchy::can_set_instance_parent(Node *p_node, Node *p_parent) {
@@ -187,7 +190,7 @@ bool VextoriaSceneHierarchy::can_set_instance_parent(Node *p_node, Node *p_paren
 	if (p_parent != nullptr && !is_instance_node(p_parent)) {
 		return false;
 	}
-	if (p_node->get_parent() == p_parent) {
+	if (get_instance_parent(p_node) == p_parent && (p_parent != nullptr || p_node->get_parent() == nullptr)) {
 		return true;
 	}
 	if (is_instance_parent_locked(p_node)) {
@@ -220,7 +223,7 @@ int64_t VextoriaSceneHierarchy::get_instance_child_index(Node *p_node) {
 	if (!is_instance_node(p_node)) {
 		return -1;
 	}
-	Node *parent = p_node->get_parent();
+	Node *parent = get_instance_parent(p_node);
 	if (parent == nullptr) {
 		return -1;
 	}
@@ -233,7 +236,7 @@ bool VextoriaSceneHierarchy::move_instance_child(Node *p_node, int64_t p_index) 
 	if (!is_instance_node(p_node)) {
 		return false;
 	}
-	Node *parent = p_node->get_parent();
+	Node *parent = get_instance_parent(p_node);
 	if (parent == nullptr) {
 		return false;
 	}
@@ -250,6 +253,18 @@ bool VextoriaSceneHierarchy::move_instance_child(Node *p_node, int64_t p_index) 
 	const int64_t target_index = CLAMP(p_index, int64_t(0), int64_t(instances.size() - 1));
 	if (old_index == target_index) {
 		return true;
+	}
+	// Godot's move_child only orders physical siblings. Normalize helper-wrapped
+	// logical siblings under their actual Instance parent before applying the
+	// filtered order. Keep world transforms: helper Nodes are storage details,
+	// not Roblox Instance parents or transform frames.
+	for (Node *instance : instances) {
+		if (instance->get_parent() != parent) {
+			instance->reparent(parent, true);
+			if (instance->get_parent() != parent) {
+				return false;
+			}
+		}
 	}
 
 	// The requested order is applied only to the filtered Instance sequence.
@@ -275,7 +290,7 @@ bool VextoriaSceneHierarchy::set_instance_parent(Node *p_node, Node *p_parent) {
 	if (p_node != nullptr && active_parent_changes.has(p_node->get_instance_id())) {
 		// Lifecycle setup may reassert the already-committed target. This is a
 		// true no-op and cannot bypass the transaction's authorized commit.
-		return p_node->get_parent() == p_parent;
+		return get_instance_parent(p_node) == p_parent;
 	}
 	return set_instance_parent_internal(p_node, p_parent);
 }
@@ -324,14 +339,14 @@ bool VextoriaSceneHierarchy::set_instance_parent_internal(Node *p_node, Node *p_
 		return false;
 	}
 	Node *old_parent = p_node->get_parent();
-	if (old_parent == p_parent) {
+	if (get_instance_parent(p_node) == p_parent && (p_parent != nullptr || p_node->get_parent() == nullptr)) {
 		return true;
 	}
 	if (p_parent == nullptr) {
 		if (old_parent != nullptr) {
 			old_parent->remove_child(p_node);
 		}
-		return p_node->get_parent() == nullptr;
+		return get_instance_parent(p_node) == nullptr;
 	}
 	if (old_parent == nullptr) {
 		p_parent->add_child(p_node);

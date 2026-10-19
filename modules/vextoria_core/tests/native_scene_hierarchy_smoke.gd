@@ -52,6 +52,10 @@ func _initialize() -> void:
 	nested_instance.name = "Nested"
 	nested_instance.set_meta("_vextoria_instance", true)
 	first_child.add_child(nested_instance)
+	var instance_through_helper := Node.new()
+	instance_through_helper.name = "ThroughHelper"
+	instance_through_helper.set_meta("_vextoria_instance", true)
+	godot_helper_between_instances.add_child(instance_through_helper)
 	var detached := Node.new()
 	detached.name = "Detached"
 	detached.set_meta("_vextoria_instance", true)
@@ -61,11 +65,22 @@ func _initialize() -> void:
 	_assert_index(third, 2)
 	_assert_index(helper, -1)
 	_assert(_instance_names_from_api(parent) == ["First", "Second", "Third"], "native child API included helpers or changed order")
-	_assert(_recursive_child_search_order(parent) == ["First", "FirstChild", "Nested", "Second", "Third"],
+	_assert(_recursive_child_search_order(parent) == ["First", "FirstChild", "Nested", "ThroughHelper", "Second", "Third"],
 		"native recursive child search order did not preserve Roblox's actual depth-first subtree visitation or skipped helper Nodes")
 	_assert(_find_instance_child_by_name(parent, "Second") == second, "native direct-name lookup missed a marked Instance child")
 	_assert(_find_instance_child_by_name(parent, "GodotHelper") == null, "native direct-name lookup exposed an unmarked helper Node")
 	_assert(_find_instance_child_by_name(parent, "Missing") == null, "native direct-name lookup returned a node for a missing name")
+	_assert(_instance_names_from_api(first) == ["FirstChild", "ThroughHelper"], "native Instance child query did not cross a private helper Node")
+	_assert(_find_instance_child_by_name(first, "ThroughHelper") == instance_through_helper, "native direct lookup did not treat private helper Nodes as transparent")
+	_assert(_instance_parent_from_api(instance_through_helper) == first, "native Instance parent query exposed a private helper Node")
+	_assert(_get_instance_child_index(instance_through_helper) == 1, "native Instance child index disagreed with transparent helper traversal")
+	_assert(_set_instance_parent(instance_through_helper, first), "native same-logical-parent assignment failed")
+	_assert(instance_through_helper.get_parent() == godot_helper_between_instances,
+		"same-logical-parent assignment unnecessarily flattened the private helper representation")
+	_assert(_move_instance_child(instance_through_helper, 0), "native reorder failed for an Instance nested below a private helper")
+	_assert(_instance_names_from_api(first) == ["ThroughHelper", "FirstChild"], "native reorder did not update logical child order")
+	_assert(_instance_parent_from_api(instance_through_helper) == first, "native reorder changed logical parent")
+	_assert(_get_instance_child_index(first_child) == 1, "native child index did not follow reordered logical siblings")
 	_assert(_instance_parent_from_api(first) == parent, "native parent API missed the marked SceneTree parent")
 	_assert(_instance_parent_from_api(helper) == null, "native parent API accepted an unmarked node")
 	_assert(_is_instance_ancestor_of(parent, first), "native ancestry query missed a direct Instance parent")

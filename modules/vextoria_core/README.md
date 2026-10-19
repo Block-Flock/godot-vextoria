@@ -166,18 +166,20 @@ When a detached Creator world admits a descendant before its parent has been
 explicitly admitted, `ensure_item_for_node` creates marked ancestors first so
 the item does not attach to the wrong branch.
 
-`VextoriaSceneHierarchy` owns the native Roblox-Instance sibling-order bridge.
-Its child-enumeration API returns direct child Nodes marked
-`_vextoria_instance` in native Godot order, and its parent query returns the
-marked native parent for an Instance Node. Its filtered index counts only
-those children, and its reorder operation moves within that filtered
-sequence without treating private Godot helper Nodes as Instances. This is the
-engine source used for Roblox-facing `Instance.Parent`, `GetChildren()`, and
-`Index`; the managed child list is retained only for non-native compatibility
-objects. Its `set_instance_parent` operation validates marked Instance nodes,
-rejects self/cyclic parenting, and performs native attach, reparent, or detach
-through Godot's SceneTree. `can_set_instance_parent` exposes structural
-preflight. The native `begin_instance_parent_change` /
+`VextoriaSceneHierarchy` owns the native Roblox-Instance hierarchy bridge.
+Its child-enumeration API returns the first marked `_vextoria_instance`
+descendants beneath a parent in Godot traversal order; unmarked implementation
+Nodes are transparent, while traversal stops at each marked Instance. Parent,
+descendant, direct-child lookup, filtered index, and reorder all use that same
+logical projection. Reorder preserves world transforms when helper-wrapped
+siblings must be normalized into physical Godot siblings, and native sibling
+name resolution consults the same logical child list. This is the engine
+source used for Roblox-facing `Instance.Parent`, `GetChildren()`, and `Index`;
+the managed child list is retained only for non-native compatibility objects.
+Its `set_instance_parent` operation validates marked Instance nodes, rejects
+self/cyclic parenting, and performs native attach, reparent, or detach through
+Godot's SceneTree. `can_set_instance_parent` exposes structural preflight. The
+native `begin_instance_parent_change` /
 `commit_instance_parent_change` / `end_instance_parent_change` contract holds
 a per-Node reentrancy sentry across client lifecycle callbacks, permits one
 commit to the requested native parent, and rejects nested or mismatched

@@ -10,8 +10,9 @@ class Node;
 class Node3D;
 class String;
 
-// Roblox Instance ordering is the order of marked Instance Nodes, not the
-// raw Godot child index (a Godot parent may also own private helper Nodes).
+// Roblox Instance hierarchy is projected from marked Nodes in the Godot tree.
+// Unmarked implementation Nodes are transparent; ordering is the depth-first
+// order of marked children, not the raw Godot child index.
 class VextoriaSceneHierarchy : public Object {
 	GDCLASS(VextoriaSceneHierarchy, Object);
 	static bool set_instance_parent_internal(Node *p_node, Node *p_parent);

@@ -70,9 +70,10 @@ static void set_instance_tags_with_notifications(Node *p_node, const PackedStrin
 static String resolve_unique_instance_sibling_name(const Node *p_subject, Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) {
 	HashSet<StringName> used_names;
 	if (p_sibling_container) {
-		for (int i = 0; i < p_sibling_container->get_child_count(false); ++i) {
-			Node *sibling = p_sibling_container->get_child(i, false);
-			if (sibling != p_subject && VextoriaSceneHierarchy::is_instance_node(sibling)) {
+		Array siblings = VextoriaSceneHierarchy::get_instance_children(p_sibling_container);
+		for (int i = 0; i < siblings.size(); ++i) {
+			Node *sibling = Object::cast_to<Node>(siblings[i]);
+			if (sibling != nullptr && sibling != p_subject) {
 				used_names.insert(sibling->get_name());
 			}
 		}
