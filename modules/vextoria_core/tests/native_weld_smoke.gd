@@ -44,6 +44,8 @@ func _run() -> void:
 	weld.configure_weld(a, b, c0, c1)
 	await _settle()
 	world.remove_child(weld)
+	if not _check(weld.get("Enabled"), "SceneTree detach changed the authored Enabled property"):
+		return
 	if not _check(PhysicsServer3D.joint_get_type(joint_rid) != PhysicsServer3D.JOINT_TYPE_6DOF,
 		"leaving the SceneTree retained the Jolt constraint"):
 		return
@@ -139,6 +141,9 @@ func _run() -> void:
 	if not _check(weld.get_rid() == joint_rid, "repeated reconfiguration churned joint identity"):
 		return
 	weld.clear_weld()
+	if not _check(weld.get("Enabled") and PhysicsServer3D.joint_get_type(joint_rid) != PhysicsServer3D.JOINT_TYPE_6DOF,
+		"clearing a native binding changed authored Enabled state or retained its constraint"):
+		return
 	constraint_b.free()
 	constraint_a.free()
 	b.free()

@@ -151,7 +151,9 @@ void Weld::configure_weld(PhysicsBody3D *p_body_a, PhysicsBody3D *p_body_b, cons
 }
 
 void Weld::clear_weld() {
-	enabled = false;
+	// Clearing an endpoint binding is a lifecycle operation, not an authored
+	// Enabled edit. Preserve the Roblox-facing property across SceneTree exit,
+	// where the same logical joint is expected to be rebound on re-entry.
 	set_nodes(NodePath(), NodePath());
 	disconnect_endpoints();
 }
