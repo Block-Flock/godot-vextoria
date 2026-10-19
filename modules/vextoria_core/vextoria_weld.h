@@ -11,6 +11,7 @@ class Weld : public Generic6DOFJoint3D {
 	Transform3D c0;
 	Transform3D c1;
 	bool enabled = true;
+	bool physics_suppressed = false;
 	ObjectID endpoint_a;
 	ObjectID endpoint_b;
 	void watch_endpoints(PhysicsBody3D *p_a, PhysicsBody3D *p_b);
@@ -33,6 +34,8 @@ public:
 	Transform3D get_c1() const { return c1; }
 	void set_enabled(bool p_enabled);
 	bool is_enabled() const { return enabled; }
+	void set_physics_suppressed(bool p_suppressed);
+	bool is_physics_suppressed() const { return physics_suppressed; }
 	void configure_weld(PhysicsBody3D *p_body_a, PhysicsBody3D *p_body_b, const Transform3D &p_c0, const Transform3D &p_c1, bool p_enabled = true);
 	void clear_weld();
 	void set_part0(const NodePath &p_path);

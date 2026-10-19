@@ -12,6 +12,7 @@
 #include "core/math/transform_3d.h"
 #include "core/object/ref_counted.h"
 #include "core/variant/array.h"
+#include "scene/main/node.h"
 #include "scene/3d/node_3d.h"
 
 #include <cstdint>
@@ -30,6 +31,7 @@ protected:
 public:
 	void configure(const Array &p_members, const Array &p_handle_to_member);
 	int configure_graph(Node3D *p_handle, const Array &p_candidates, const Array &p_welds);
+	int configure_tool_graph(Node3D *p_handle, Node *p_tool_root);
 	Array get_members() const;
 	Transform3D get_member_frame(int p_index) const;
 	int apply_target(const Transform3D &p_target_handle_world);

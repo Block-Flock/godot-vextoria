@@ -20,16 +20,16 @@ Weld::Weld() {
 bool Weld::_is_joint_enabled() const {
 	// Unlike an ordinary Godot joint, an incomplete Weld never attaches one
 	// endpoint to the world during staged property loading.
-	if (!enabled || get_node_a().is_empty() || get_node_b().is_empty()) {
+	if (!enabled || physics_suppressed || get_node_a().is_empty() || get_node_b().is_empty()) {
 		return false;
 	}
-	const PhysicsBody3D *a = Object::cast_to<PhysicsBody3D>(get_node_or_null(get_node_a()));
-	const PhysicsBody3D *b = Object::cast_to<PhysicsBody3D>(get_node_or_null(get_node_b()));
-	if (!a || !b) {
+	const PhysicsBody3D *body_a = Object::cast_to<PhysicsBody3D>(get_node_or_null(get_node_a()));
+	const PhysicsBody3D *body_b = Object::cast_to<PhysicsBody3D>(get_node_or_null(get_node_b()));
+	if (!body_a || !body_b) {
 		return false;
 	}
-	const Part *part_a = Object::cast_to<Part>(a);
-	const Part *part_b = Object::cast_to<Part>(b);
+	const Part *part_a = Object::cast_to<Part>(body_a);
+	const Part *part_b = Object::cast_to<Part>(body_b);
 	return !(part_a && part_b && part_a->is_anchored() && part_b->is_anchored());
 }
 
@@ -125,6 +125,14 @@ void Weld::set_enabled(bool p_enabled) {
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Enabled"));
 }
 
+void Weld::set_physics_suppressed(bool p_suppressed) {
+	if (physics_suppressed == p_suppressed) {
+		return;
+	}
+	physics_suppressed = p_suppressed;
+	_update_joint();
+}
+
 void Weld::configure_weld(PhysicsBody3D *p_body_a, PhysicsBody3D *p_body_b, const Transform3D &p_c0, const Transform3D &p_c1, bool p_enabled) {
 	ERR_FAIL_NULL(p_body_a);
 	ERR_FAIL_NULL(p_body_b);
@@ -186,6 +194,8 @@ void Weld::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_c1"), &Weld::get_c1);
 	ClassDB::bind_method(D_METHOD("set_enabled", "enabled"), &Weld::set_enabled);
 	ClassDB::bind_method(D_METHOD("is_enabled"), &Weld::is_enabled);
+	ClassDB::bind_method(D_METHOD("set_physics_suppressed", "suppressed"), &Weld::set_physics_suppressed);
+	ClassDB::bind_method(D_METHOD("is_physics_suppressed"), &Weld::is_physics_suppressed);
 	ClassDB::bind_method(D_METHOD("configure_weld", "part0", "part1", "c0", "c1", "enabled"), &Weld::configure_weld, DEFVAL(true));
 	ClassDB::bind_method(D_METHOD("clear_weld"), &Weld::clear_weld);
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM3D, "C0"), "set_c0", "get_c0");
