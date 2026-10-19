@@ -1,0 +1,9 @@
+#!/usr/bin/env python
+Import("env")
+Import("env_modules")
+
+env_vextoria = env_modules.Clone()
+env_vextoria.add_source_files(env.modules_sources, "register_types.cpp")
+env_vextoria.add_source_files(env.modules_sources, "lifecycle_adapters.cpp")
+env_vextoria.add_source_files(env.modules_sources, "src/*.cpp")
+env_vextoria.add_source_files(env.modules_sources, "src/roblox2016/*.cpp")
