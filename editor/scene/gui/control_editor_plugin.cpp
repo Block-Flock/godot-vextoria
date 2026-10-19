@@ -958,7 +958,7 @@ Vector2 ControlEditorToolbar::_position_to_anchor(const Control *p_control, Vect
 }
 
 bool ControlEditorToolbar::_is_node_locked(const Node *p_node) {
-	return p_node->get_meta("_edit_lock_", false);
+	return p_node->is_vextoria_edit_locked();
 }
 
 List<Control *> ControlEditorToolbar::_get_edited_controls() {

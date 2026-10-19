@@ -140,8 +140,8 @@ void SceneTreeEditor::_cell_button_pressed(Object *p_item, int p_column, int p_i
 		undo_redo->commit_action();
 	} else if (p_id == BUTTON_LOCK) {
 		undo_redo->create_action(TTR("Unlock Node"));
-		undo_redo->add_do_method(n, "remove_meta", "_edit_lock_");
-		undo_redo->add_undo_method(n, "set_meta", "_edit_lock_", true);
+		undo_redo->add_do_method(n, "set_vextoria_edit_locked", false);
+		undo_redo->add_undo_method(n, "set_vextoria_edit_locked", true);
 		undo_redo->add_do_method(this, "emit_signal", "node_changed");
 		undo_redo->add_undo_method(this, "emit_signal", "node_changed");
 		undo_redo->add_do_method(CanvasItemEditor::get_singleton(), "emit_signal", "item_lock_status_changed");
@@ -606,7 +606,7 @@ void SceneTreeEditor::_update_node(Node *p_node, TreeItem *p_item, bool p_part_o
 			p_item->set_button_color(0, p_item->get_button_count(0) - 1, button_color);
 		}
 
-		if (p_node->has_meta("_edit_lock_")) {
+		if (p_node->is_vextoria_edit_locked()) {
 			p_item->add_button(0, get_editor_theme_icon(SNAME("Lock")), BUTTON_LOCK, false, TTR("Node is locked.\nClick to unlock it."));
 		}
 		if (p_node->has_meta("_edit_group_")) {

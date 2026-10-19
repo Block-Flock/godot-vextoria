@@ -2134,6 +2134,56 @@ bool Node::is_vextoria_instance_native() const {
 	return has_meta(vextoria_instance_meta) && get_meta(vextoria_instance_meta).booleanize();
 }
 
+PackedStringArray Node::get_vextoria_tags() const {
+	if (data.vextoria_tags_initialized) {
+		return data.vextoria_tags;
+	}
+	// Read legacy native Instance metadata until old scenes have been resaved
+	// with the reflected Tags property. New writes use Node-owned state only.
+	static const StringName legacy_tags_meta("VextoriaTags");
+	if (has_meta(legacy_tags_meta)) {
+		return get_meta(legacy_tags_meta, PackedStringArray());
+	}
+	return PackedStringArray();
+}
+
+void Node::set_vextoria_tags(const PackedStringArray &p_tags) {
+	data.vextoria_tags = p_tags;
+	data.vextoria_tags_initialized = true;
+	static const StringName legacy_tags_meta("VextoriaTags");
+	if (has_meta(legacy_tags_meta)) {
+		remove_meta(legacy_tags_meta);
+	}
+}
+
+bool Node::is_vextoria_edit_locked() const {
+	if (data.vextoria_edit_locked) {
+		return true;
+	}
+	// Preserve scenes saved before edit-lock state moved to the native Node.
+	static const StringName legacy_edit_lock_meta("_edit_lock_");
+	return has_meta(legacy_edit_lock_meta);
+}
+
+void Node::set_vextoria_edit_locked(bool p_locked) {
+	static const StringName legacy_edit_lock_meta("_edit_lock_");
+	if (!is_vextoria_instance_native()) {
+		// Preserve Godot's metadata lock contract for ordinary Nodes. Marked
+		// Vextoria Instances use the common native state instead.
+		if (p_locked) {
+			set_meta(legacy_edit_lock_meta, true);
+		} else if (has_meta(legacy_edit_lock_meta)) {
+			remove_meta(legacy_edit_lock_meta);
+		}
+		data.vextoria_edit_locked = false;
+		return;
+	}
+	data.vextoria_edit_locked = p_locked;
+	if (has_meta(legacy_edit_lock_meta)) {
+		remove_meta(legacy_edit_lock_meta);
+	}
+}
+
 Node *Node::find_parent(const String &p_pattern) const {
 	ERR_THREAD_GUARD_V(nullptr);
 	Node *p = data.parent;
@@ -3795,6 +3845,12 @@ void Node::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_name", "name"), &Node::set_name);
 	ClassDB::bind_method(D_METHOD("get_name"), &Node::get_name);
+	ClassDB::bind_method(D_METHOD("is_vextoria_archivable"), &Node::is_vextoria_archivable);
+	ClassDB::bind_method(D_METHOD("set_vextoria_archivable", "archivable"), &Node::set_vextoria_archivable);
+	ClassDB::bind_method(D_METHOD("get_vextoria_tags"), &Node::get_vextoria_tags);
+	ClassDB::bind_method(D_METHOD("set_vextoria_tags", "tags"), &Node::set_vextoria_tags);
+	ClassDB::bind_method(D_METHOD("is_vextoria_edit_locked"), &Node::is_vextoria_edit_locked);
+	ClassDB::bind_method(D_METHOD("set_vextoria_edit_locked", "locked"), &Node::set_vextoria_edit_locked);
 	ClassDB::bind_method(D_METHOD("add_child", "node", "force_readable_name", "internal"), &Node::add_child, DEFVAL(false), DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("remove_child", "node"), &Node::remove_child);
 	ClassDB::bind_method(D_METHOD("reparent", "new_parent", "keep_global_transform"), &Node::reparent, DEFVAL(true));

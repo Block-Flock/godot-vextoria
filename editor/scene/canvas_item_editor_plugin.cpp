@@ -277,7 +277,7 @@ public:
 };
 
 bool CanvasItemEditor::_is_node_locked(const Node *p_node) const {
-	return p_node->get_meta("_edit_lock_", false);
+	return p_node->is_vextoria_edit_locked();
 }
 
 bool CanvasItemEditor::_is_node_movable(const Node *p_node, bool p_popup_warning) {
@@ -3032,7 +3032,7 @@ void CanvasItemEditor::_update_lock_and_group_button() {
 		for (Node *E : selection) {
 			CanvasItem *item = Object::cast_to<CanvasItem>(E);
 			if (item) {
-				if (all_locked && !item->has_meta("_edit_lock_")) {
+				if (all_locked && !item->is_vextoria_edit_locked()) {
 					all_locked = false;
 				}
 				if (all_group && !item->has_meta("_edit_group_")) {
@@ -3810,7 +3810,7 @@ void CanvasItemEditor::_draw_selection() {
 			}
 		}
 
-		bool item_locked = ci->has_meta("_edit_lock_");
+		bool item_locked = ci->is_vextoria_edit_locked();
 		Transform2D xform = transform * ci->get_screen_transform();
 
 		// Draw the selected items position / surrounding boxes
@@ -4266,7 +4266,7 @@ void CanvasItemEditor::_draw_locks_and_groups(Node *p_node, const Transform2D &p
 		real_t offset = 0;
 
 		Ref<Texture2D> lock = get_editor_theme_icon(SNAME("LockViewport"));
-		if (show_lock_gizmos && p_node->has_meta("_edit_lock_")) {
+		if (show_lock_gizmos && p_node->is_vextoria_edit_locked()) {
 			lock->draw(viewport_ci, (transform * canvas_xform * parent_xform).xform(Point2(0, 0)) + Point2(offset, 0));
 			offset += lock->get_size().x;
 		}
@@ -4955,8 +4955,8 @@ void CanvasItemEditor::_popup_callback(int p_op) {
 					continue;
 				}
 
-				undo_redo->add_do_method(ci, "set_meta", "_edit_lock_", true);
-				undo_redo->add_undo_method(ci, "remove_meta", "_edit_lock_");
+				undo_redo->add_do_method(ci, "set_vextoria_edit_locked", true);
+				undo_redo->add_undo_method(ci, "set_vextoria_edit_locked", false);
 				undo_redo->add_do_method(this, "emit_signal", "item_lock_status_changed");
 				undo_redo->add_undo_method(this, "emit_signal", "item_lock_status_changed");
 			}
@@ -4974,8 +4974,8 @@ void CanvasItemEditor::_popup_callback(int p_op) {
 					continue;
 				}
 
-				undo_redo->add_do_method(ci, "remove_meta", "_edit_lock_");
-				undo_redo->add_undo_method(ci, "set_meta", "_edit_lock_", true);
+				undo_redo->add_do_method(ci, "set_vextoria_edit_locked", false);
+				undo_redo->add_undo_method(ci, "set_vextoria_edit_locked", true);
 				undo_redo->add_do_method(this, "emit_signal", "item_lock_status_changed");
 				undo_redo->add_undo_method(this, "emit_signal", "item_lock_status_changed");
 			}

@@ -206,6 +206,12 @@ private:
 		// Instances backed by generic Godot nodes share the same native owner.
 		bool vextoria_parent_locked = false;
 		bool vextoria_instance_native = false;
+		// Common Vextoria Instance state is stored once on its authoritative Node,
+		// not independently on Folder, Model, Part, or compatibility subclasses.
+		bool vextoria_archivable = true;
+		PackedStringArray vextoria_tags;
+		bool vextoria_tags_initialized = false;
+		bool vextoria_edit_locked = false;
 		// Node::reparent announces the complete old/new transition before calling
 		// remove_child(), so that call must not announce a second null-parent move.
 		bool vextoria_parent_transition_preannounced = false;
@@ -539,6 +545,12 @@ public:
 	void set_vextoria_parent_locked(bool p_locked) { data.vextoria_parent_locked = p_locked; }
 	bool is_vextoria_instance_native() const;
 	void set_vextoria_instance_native(bool p_instance) { data.vextoria_instance_native = p_instance; }
+	bool is_vextoria_archivable() const { return data.vextoria_archivable; }
+	void set_vextoria_archivable(bool p_archivable) { data.vextoria_archivable = p_archivable; }
+	PackedStringArray get_vextoria_tags() const;
+	void set_vextoria_tags(const PackedStringArray &p_tags);
+	bool is_vextoria_edit_locked() const;
+	void set_vextoria_edit_locked(bool p_locked);
 
 	/// Optimal way to iterate the children of this node.
 	/// The caller is responsible to ensure:

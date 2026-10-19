@@ -492,7 +492,7 @@ void RuntimeNodeSelect::_physics_frame() {
 			}
 
 			// Filter out locked nodes.
-			if (avoid_locked_nodes && final_node->get_meta("_edit_lock_", false)) {
+			if (avoid_locked_nodes && final_node->is_vextoria_edit_locked()) {
 				items.remove_at(i);
 				i--;
 				continue;
@@ -969,7 +969,7 @@ void RuntimeNodeSelect::_open_selection_list(const Vector<SelectResult> &p_items
 
 	for (const SelectResult &I : p_items) {
 		int locked = 0;
-		if (I.item->get_meta("_edit_lock_", false)) {
+		if (I.item->is_vextoria_edit_locked()) {
 			locked = 1;
 		} else {
 			Node *scene = SceneTree::get_singleton()->get_root();

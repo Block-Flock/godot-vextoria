@@ -33,8 +33,13 @@ from storage so duplication/reopen cannot turn a temporarily held Part into a
 permanently frozen authored object. The client integration gate exercises
 reason overlap, Anchored edits, and duplication separately from live Tool
 equip/unequip tests.
-`Locked` reads and writes Godot's `_edit_lock_` state, so the Inspector and
-viewport lock action cannot disagree.
+`Archivable`, `Tags`, and editor `Locked` now use one common state owner in
+Godot's native `Node`; the native Instance subclasses expose reflected Roblox-
+facing properties instead of maintaining parallel fields or using metadata as
+the primary store. Existing `VextoriaTags` and `_edit_lock_` metadata remain
+readable for old scenes and migrate away on the first native write. Godot's
+SceneTreeDock, 2D/3D viewport picking and lock actions call the same Node lock
+API; ordinary non-Vextoria Godot nodes retain their legacy metadata lock path.
 The editor registers a native Part gizmo with Godot's Node3DEditor. Its picking
 triangles come from the actual internal visual mesh, with the visual's local
 size frame baked into Part-local geometry. Selection therefore resolves to

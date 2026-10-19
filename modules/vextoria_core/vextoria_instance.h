@@ -55,15 +55,13 @@ class VextoriaPartRenderer;
 class VextoriaInstance : public Node {
 	GDCLASS(VextoriaInstance, Node);
 
-	bool archivable = true;
-
 protected:
 	static void _bind_methods();
 
 public:
 	VextoriaInstance();
 	String get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const;
-	bool is_archivable() const { return archivable; }
+	bool is_archivable() const { return is_vextoria_archivable(); }
 	void set_archivable(bool p_archivable);
 	PackedStringArray get_tags() const;
 	void set_tags(const PackedStringArray &p_tags);
@@ -78,15 +76,13 @@ public:
 class VextoriaSpatialInstance : public Node3D {
 	GDCLASS(VextoriaSpatialInstance, Node3D);
 
-	bool archivable = true;
-
 protected:
 	static void _bind_methods();
 
 public:
 	VextoriaSpatialInstance();
 	String get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const;
-	bool is_archivable() const { return archivable; }
+	bool is_archivable() const { return is_vextoria_archivable(); }
 	void set_archivable(bool p_archivable);
 	PackedStringArray get_tags() const;
 	void set_tags(const PackedStringArray &p_tags);
@@ -107,7 +103,6 @@ class Part : public RigidBody3D {
 
 	Vector3 size = Vector3(4, 1, 2);
 	Color color = Color(0.639216, 0.635294, 0.647059);
-	bool archivable = true;
 	bool anchored = false;
 	// Independent transient owners; neither rewrites authored Anchored state.
 	uint8_t tool_freeze_reasons = 0;
@@ -173,7 +168,7 @@ public:
 	int get_material_kind() const { return material_kind; }
 	void set_material_kind(int p_kind);
 	void set_normal_maps_enabled(bool p_enabled);
-	bool is_archivable() const { return archivable; }
+	bool is_archivable() const { return is_vextoria_archivable(); }
 	void set_archivable(bool p_archivable);
 	PackedStringArray get_tags() const;
 	void set_tags(const PackedStringArray &p_tags);

@@ -56,27 +56,14 @@
 
 #include <cstdint>
 
-static const StringName &get_vextoria_tags_meta() {
-	static const StringName tags_meta = SNAME("VextoriaTags");
-	return tags_meta;
-}
-
-static PackedStringArray get_vextoria_tags(const Object *p_object) {
-	const StringName &tags_meta = get_vextoria_tags_meta();
-	if (p_object->has_meta(tags_meta)) {
-		return p_object->get_meta(tags_meta, PackedStringArray());
-	}
-	return PackedStringArray();
-}
-
-static void set_vextoria_tags(Object *p_object, const PackedStringArray &p_tags) {
-	PackedStringArray old_tags = get_vextoria_tags(p_object);
+static void set_instance_tags_with_notifications(Node *p_node, const PackedStringArray &p_tags) {
+	PackedStringArray old_tags = p_node->get_vextoria_tags();
 	if (old_tags == p_tags) {
 		return;
 	}
-	p_object->set_meta(get_vextoria_tags_meta(), p_tags);
-	p_object->emit_signal(SNAME("vextoria_property_changed"), SNAME("Tags"));
-	p_object->emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Tags"), old_tags, p_tags);
+	p_node->set_vextoria_tags(p_tags);
+	p_node->emit_signal(SNAME("vextoria_property_changed"), SNAME("Tags"));
+	p_node->emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Tags"), old_tags, p_tags);
 }
 
 static String resolve_unique_instance_sibling_name(const Node *p_subject, Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) {
@@ -185,34 +172,28 @@ void VextoriaInstance::reparent(RequiredParam<Node> p_parent, bool p_keep_global
 }
 
 void VextoriaInstance::set_archivable(bool p_archivable) {
-	if (archivable == p_archivable) {
+	if (is_archivable() == p_archivable) {
 		return;
 	}
-	bool old_archivable = archivable;
-	archivable = p_archivable;
+	bool old_archivable = is_archivable();
+	set_vextoria_archivable(p_archivable);
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Archivable"));
 	emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Archivable"), old_archivable, p_archivable);
 }
 
-bool VextoriaInstance::is_locked() const {
-	return has_meta("_edit_lock_");
-}
-
 PackedStringArray VextoriaInstance::get_tags() const {
-	return get_vextoria_tags(this);
+	return get_vextoria_tags();
 }
 
 void VextoriaInstance::set_tags(const PackedStringArray &p_tags) {
-	set_vextoria_tags(this, p_tags);
+	set_instance_tags_with_notifications(this, p_tags);
 }
 
 void VextoriaInstance::set_locked(bool p_locked) {
-	if (p_locked) {
-		set_meta("_edit_lock_", true);
-	} else if (has_meta("_edit_lock_")) {
-		remove_meta("_edit_lock_");
-	}
+	set_vextoria_edit_locked(p_locked);
 }
+
+bool VextoriaInstance::is_locked() const { return is_vextoria_edit_locked(); }
 
 void VextoriaInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_unique_sibling_name", "sibling_container", "requested_name", "reserved_names"), &VextoriaInstance::get_unique_sibling_name);
@@ -237,33 +218,29 @@ String VextoriaSpatialInstance::get_unique_sibling_name(Node *p_sibling_containe
 }
 
 void VextoriaSpatialInstance::set_archivable(bool p_archivable) {
-	if (archivable == p_archivable) {
+	if (is_archivable() == p_archivable) {
 		return;
 	}
-	bool old_archivable = archivable;
-	archivable = p_archivable;
+	bool old_archivable = is_archivable();
+	set_vextoria_archivable(p_archivable);
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Archivable"));
 	emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Archivable"), old_archivable, p_archivable);
 }
 
 PackedStringArray VextoriaSpatialInstance::get_tags() const {
-	return get_vextoria_tags(this);
+	return get_vextoria_tags();
 }
 
 void VextoriaSpatialInstance::set_tags(const PackedStringArray &p_tags) {
-	set_vextoria_tags(this, p_tags);
+	set_instance_tags_with_notifications(this, p_tags);
 }
 
 bool VextoriaSpatialInstance::is_locked() const {
-	return has_meta("_edit_lock_");
+	return is_vextoria_edit_locked();
 }
 
 void VextoriaSpatialInstance::set_locked(bool p_locked) {
-	if (p_locked) {
-		set_meta("_edit_lock_", true);
-	} else if (has_meta("_edit_lock_")) {
-		remove_meta("_edit_lock_");
-	}
+	set_vextoria_edit_locked(p_locked);
 }
 
 void VextoriaSpatialInstance::_bind_methods() {
@@ -378,15 +355,15 @@ Part::Part() {
 }
 
 bool Part::is_locked() const {
-	return has_meta("_edit_lock_");
+	return is_vextoria_edit_locked();
 }
 
 PackedStringArray Part::get_tags() const {
-	return get_vextoria_tags(this);
+	return get_vextoria_tags();
 }
 
 void Part::set_tags(const PackedStringArray &p_tags) {
-	set_vextoria_tags(this, p_tags);
+	set_instance_tags_with_notifications(this, p_tags);
 }
 
 Part::~Part() {
@@ -423,19 +400,15 @@ void Part::refresh_editor_pick_geometry() {
 }
 
 void Part::set_locked(bool p_locked) {
-	if (p_locked) {
-		set_meta("_edit_lock_", true);
-	} else if (has_meta("_edit_lock_")) {
-		remove_meta("_edit_lock_");
-	}
+	set_vextoria_edit_locked(p_locked);
 }
 
 void Part::set_archivable(bool p_archivable) {
-	if (archivable == p_archivable) {
+	if (is_archivable() == p_archivable) {
 		return;
 	}
-	bool old_archivable = archivable;
-	archivable = p_archivable;
+	bool old_archivable = is_archivable();
+	set_vextoria_archivable(p_archivable);
 	emit_signal(SNAME("vextoria_property_changed"), SNAME("Archivable"));
 	emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Archivable"), old_archivable, p_archivable);
 }

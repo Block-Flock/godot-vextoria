@@ -51,7 +51,7 @@ func _run() -> void:
 	model.owner = scene_root
 	model.position = Vector3(4, 2, 7)
 	model.set("Locked", true)
-	assert(model.has_meta("_edit_lock_"), "Model must use Godot's editor lock")
+	assert(model.call("is_vextoria_edit_locked") and not model.has_meta("_edit_lock_"), "native edit lock must be stored on Node rather than mirrored into metadata")
 	var folder: Node = ClassDB.instantiate("Folder")
 	folder.name = "Details"
 	assert(folder.has_signal("vextoria_parent_changed"), "native Node must expose the Vextoria parent-change bridge")
@@ -63,10 +63,22 @@ func _run() -> void:
 	folder.set("Tags", PackedStringArray(["fixture", "folder"]))
 	folder.set("Archivable", false)
 	assert(folder.get("Tags") == PackedStringArray(["fixture", "folder"]), "native Folder Tags property must round trip")
+	assert(folder.call("get_vextoria_tags") == folder.get("Tags") and not folder.has_meta("VextoriaTags"), "native Tags property must use common Node-owned state")
+	assert(not folder.call("is_vextoria_archivable") and folder.get("Archivable") == folder.call("is_vextoria_archivable"), "native Archivable alias must use common Node-owned state")
 	assert(instance_property_changes.changes == [
 		[&"Tags", PackedStringArray(), PackedStringArray(["fixture", "folder"])],
 		[&"Archivable", true, false],
 	], "native Instance changes must include exact previous/current values and suppress no-op writes")
+	var legacy_metadata_folder: Node = ClassDB.instantiate("Folder")
+	legacy_metadata_folder.set_meta("VextoriaTags", PackedStringArray(["legacy-tag"]))
+	legacy_metadata_folder.set_meta("_edit_lock_", true)
+	assert(legacy_metadata_folder.get("Tags") == PackedStringArray(["legacy-tag"]), "legacy tag metadata must remain readable")
+	assert(legacy_metadata_folder.call("is_vextoria_edit_locked"), "legacy edit-lock metadata must remain readable")
+	legacy_metadata_folder.set("Tags", PackedStringArray(["migrated-tag"]))
+	legacy_metadata_folder.set("Locked", false)
+	assert(legacy_metadata_folder.get("Tags") == PackedStringArray(["migrated-tag"]) and not legacy_metadata_folder.has_meta("VextoriaTags"), "first native tag write must migrate legacy metadata into Node state")
+	assert(not legacy_metadata_folder.call("is_vextoria_edit_locked") and not legacy_metadata_folder.has_meta("_edit_lock_"), "clearing native edit lock must clear the legacy metadata representation")
+	legacy_metadata_folder.free()
 	var parent_changes := ParentChangeCounter.new()
 	folder.connect("vextoria_parent_changed", Callable(parent_changes, "record"))
 	assert(folder.has_signal("vextoria_reparented"), "native Node must expose an atomic completed-reparent bridge")

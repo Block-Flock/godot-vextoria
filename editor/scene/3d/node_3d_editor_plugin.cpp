@@ -1926,7 +1926,7 @@ void Node3DEditorViewport::_surface_focus_exit() {
 }
 
 bool Node3DEditorViewport::_is_node_locked(const Node *p_node) const {
-	return p_node->get_meta("_edit_lock_", false);
+	return p_node->is_vextoria_edit_locked();
 }
 
 void Node3DEditorViewport::_list_select(Ref<InputEventMouseButton> b) {
@@ -6261,7 +6261,7 @@ void Node3DEditorViewport::apply_transform(Vector3 p_motion, double p_snap) {
 			continue;
 		}
 
-		if (sp->has_meta("_edit_lock_") && !spatial_editor->is_gizmo_visible()) {
+		if (sp->is_vextoria_edit_locked() && !spatial_editor->is_gizmo_visible()) {
 			continue;
 		}
 
@@ -7427,7 +7427,7 @@ void Node3DEditor::update_transform_gizmo() {
 				continue;
 			}
 
-			if (sp->has_meta("_edit_lock_")) {
+			if (sp->is_vextoria_edit_locked()) {
 				continue;
 			}
 
@@ -8241,8 +8241,8 @@ void Node3DEditor::_menu_item_pressed(int p_option) {
 					continue;
 				}
 
-				undo_redo->add_do_method(spatial, "set_meta", "_edit_lock_", true);
-				undo_redo->add_undo_method(spatial, "remove_meta", "_edit_lock_");
+				undo_redo->add_do_method(spatial, "set_vextoria_edit_locked", true);
+				undo_redo->add_undo_method(spatial, "set_vextoria_edit_locked", false);
 				undo_redo->add_do_method(this, "emit_signal", "item_lock_status_changed");
 				undo_redo->add_undo_method(this, "emit_signal", "item_lock_status_changed");
 			}
@@ -8262,8 +8262,8 @@ void Node3DEditor::_menu_item_pressed(int p_option) {
 					continue;
 				}
 
-				undo_redo->add_do_method(spatial, "remove_meta", "_edit_lock_");
-				undo_redo->add_undo_method(spatial, "set_meta", "_edit_lock_", true);
+				undo_redo->add_do_method(spatial, "set_vextoria_edit_locked", false);
+				undo_redo->add_undo_method(spatial, "set_vextoria_edit_locked", true);
 				undo_redo->add_do_method(this, "emit_signal", "item_lock_status_changed");
 				undo_redo->add_undo_method(this, "emit_signal", "item_lock_status_changed");
 			}
@@ -9349,7 +9349,7 @@ void Node3DEditor::_refresh_menu_icons() {
 		for (Node *E : selection) {
 			Node3D *node = Object::cast_to<Node3D>(E);
 			if (node) {
-				if (all_locked && !node->has_meta("_edit_lock_")) {
+				if (all_locked && !node->is_vextoria_edit_locked()) {
 					all_locked = false;
 				}
 				if (all_grouped && !node->has_meta("_edit_group_")) {
