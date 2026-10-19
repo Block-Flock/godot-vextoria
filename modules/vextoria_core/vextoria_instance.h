@@ -75,6 +75,7 @@ public:
 // user-facing native class and generic spatial proxies are created by factory.
 class VextoriaSpatialInstance : public Node3D {
 	GDCLASS(VextoriaSpatialInstance, Node3D);
+	bool roblox_visible = false;
 
 protected:
 	static void _bind_methods();
@@ -88,6 +89,8 @@ public:
 	void set_tags(const PackedStringArray &p_tags);
 	bool is_locked() const;
 	void set_locked(bool p_locked);
+	bool is_roblox_visible() const { return roblox_visible; }
+	void set_roblox_visible(bool p_visible);
 };
 
 // A Part is the physics body itself. Its visual and collision children are

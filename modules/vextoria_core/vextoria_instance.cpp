@@ -253,6 +253,8 @@ void VextoriaSpatialInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_tags", "tags"), &VextoriaSpatialInstance::set_tags);
 	ClassDB::bind_method(D_METHOD("is_locked"), &VextoriaSpatialInstance::is_locked);
 	ClassDB::bind_method(D_METHOD("set_locked", "locked"), &VextoriaSpatialInstance::set_locked);
+	ClassDB::bind_method(D_METHOD("is_roblox_visible"), &VextoriaSpatialInstance::is_roblox_visible);
+	ClassDB::bind_method(D_METHOD("set_roblox_visible", "visible"), &VextoriaSpatialInstance::set_roblox_visible);
 	ADD_SIGNAL(MethodInfo("vextoria_property_changed", PropertyInfo(Variant::STRING_NAME, "property")));
 	ADD_SIGNAL(MethodInfo("vextoria_instance_property_changed",
 			PropertyInfo(Variant::STRING_NAME, "property"),
@@ -261,6 +263,17 @@ void VextoriaSpatialInstance::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Archivable"), "set_archivable", "is_archivable");
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "Tags"), "set_tags", "get_tags");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "RobloxVisible"), "set_roblox_visible", "is_roblox_visible");
+}
+
+void VextoriaSpatialInstance::set_roblox_visible(bool p_visible) {
+	if (roblox_visible == p_visible) {
+		return;
+	}
+	const bool previous = roblox_visible;
+	roblox_visible = p_visible;
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("Visible"));
+	emit_signal(SNAME("vextoria_instance_property_changed"), SNAME("Visible"), previous, roblox_visible);
 }
 
 Node *Model::get_primary_part() {
