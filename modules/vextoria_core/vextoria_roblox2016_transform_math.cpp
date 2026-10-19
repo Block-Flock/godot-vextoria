@@ -37,6 +37,44 @@ void VextoriaRoblox2016TransformMath::set_world_cframe(Node3D *p_node, const Tra
 	p_node->set_global_transform(rigid_frame(p_cframe));
 }
 
+bool VextoriaRoblox2016TransformMath::has_imported_world_cframe(Node3D *p_node) {
+	ERR_FAIL_NULL_V(p_node, false);
+	return p_node->has_meta(SNAME("_vextoria_roblox2016_imported_cframe"));
+}
+
+Transform3D VextoriaRoblox2016TransformMath::get_imported_world_cframe(Node3D *p_node) {
+	ERR_FAIL_NULL_V(p_node, Transform3D());
+	ERR_FAIL_COND_V(!has_imported_world_cframe(p_node), Transform3D());
+	return p_node->get_meta(SNAME("_vextoria_roblox2016_imported_cframe")).operator Transform3D();
+}
+
+void VextoriaRoblox2016TransformMath::set_imported_world_cframe(Node3D *p_node, const Transform3D &p_cframe) {
+	ERR_FAIL_NULL(p_node);
+	const Transform3D frame = rigid_frame(p_cframe);
+	p_node->set_meta(SNAME("_vextoria_roblox2016_imported_cframe"), frame);
+	set_world_cframe(p_node, frame);
+}
+
+void VextoriaRoblox2016TransformMath::commit_imported_world_cframe(Node3D *p_node) {
+	ERR_FAIL_NULL(p_node);
+	if (!has_imported_world_cframe(p_node)) {
+		return;
+	}
+	const Transform3D world_frame = rigid_frame(p_node->get_global_transform());
+	p_node->set_meta(SNAME("_vextoria_roblox2016_imported_cframe"), world_frame);
+}
+
+void VextoriaRoblox2016TransformMath::copy_imported_world_cframe(Node3D *p_source, Node3D *p_target) {
+	ERR_FAIL_NULL(p_source);
+	ERR_FAIL_NULL(p_target);
+	const StringName key = SNAME("_vextoria_roblox2016_imported_cframe");
+	if (p_source->has_meta(key)) {
+		p_target->set_meta(key, p_source->get_meta(key));
+	} else if (p_target->has_meta(key)) {
+		p_target->remove_meta(key);
+	}
+}
+
 Transform3D VextoriaRoblox2016TransformMath::with_local_size(const Transform3D &p_frame, const Vector3 &p_size) {
 	return Transform3D(p_frame.basis.orthonormalized().scaled_local(p_size), p_frame.origin);
 }
@@ -66,6 +104,11 @@ void VextoriaRoblox2016TransformMath::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("rigid_frame", "frame"), &VextoriaRoblox2016TransformMath::rigid_frame);
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("get_world_cframe", "node"), &VextoriaRoblox2016TransformMath::get_world_cframe);
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("set_world_cframe", "node", "cframe"), &VextoriaRoblox2016TransformMath::set_world_cframe);
+	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("has_imported_world_cframe", "node"), &VextoriaRoblox2016TransformMath::has_imported_world_cframe);
+	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("get_imported_world_cframe", "node"), &VextoriaRoblox2016TransformMath::get_imported_world_cframe);
+	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("set_imported_world_cframe", "node", "cframe"), &VextoriaRoblox2016TransformMath::set_imported_world_cframe);
+	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("commit_imported_world_cframe", "node"), &VextoriaRoblox2016TransformMath::commit_imported_world_cframe);
+	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("copy_imported_world_cframe", "source", "target"), &VextoriaRoblox2016TransformMath::copy_imported_world_cframe);
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("with_local_size", "frame", "size"), &VextoriaRoblox2016TransformMath::with_local_size);
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("solve_weld_part1", "part0_world", "c0", "c1"), &VextoriaRoblox2016TransformMath::solve_weld_part1);
 	ClassDB::bind_static_method("VextoriaRoblox2016TransformMath", D_METHOD("solve_weld_neighbor", "known_world", "c0", "c1", "known_is_part0"), &VextoriaRoblox2016TransformMath::solve_weld_neighbor);

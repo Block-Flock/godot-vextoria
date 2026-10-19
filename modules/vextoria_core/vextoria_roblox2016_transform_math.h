@@ -25,6 +25,11 @@ public:
 	static Transform3D rigid_frame(const Transform3D &p_frame);
 	static Transform3D get_world_cframe(Node3D *p_node);
 	static void set_world_cframe(Node3D *p_node, const Transform3D &p_cframe);
+	static bool has_imported_world_cframe(Node3D *p_node);
+	static Transform3D get_imported_world_cframe(Node3D *p_node);
+	static void set_imported_world_cframe(Node3D *p_node, const Transform3D &p_cframe);
+	static void commit_imported_world_cframe(Node3D *p_node);
+	static void copy_imported_world_cframe(Node3D *p_source, Node3D *p_target);
 	static Transform3D with_local_size(const Transform3D &p_frame, const Vector3 &p_size);
 	static Transform3D solve_weld_part1(const Transform3D &p_part0_world, const Transform3D &p_c0, const Transform3D &p_c1);
 	static Transform3D solve_weld_neighbor(const Transform3D &p_known_world, const Transform3D &p_c0, const Transform3D &p_c1, bool p_known_is_part0);
