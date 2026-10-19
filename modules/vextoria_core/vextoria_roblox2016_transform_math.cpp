@@ -43,6 +43,32 @@ Vector3 finite_euler_xyz(const Vector3 &p_euler) {
 			std::isfinite(p_euler.y) ? p_euler.y : 0.0f,
 			std::isfinite(p_euler.z) ? p_euler.z : 0.0f);
 }
+
+Transform3D get_world_transform(Node3D *p_node) {
+	if (p_node->is_inside_tree()) {
+		return p_node->get_global_transform();
+	}
+	Transform3D world = p_node->get_transform();
+	Node3D *cursor = p_node;
+	while (!cursor->is_set_as_top_level()) {
+		Node3D *parent = cursor->get_parent_node_3d();
+		if (parent == nullptr) {
+			break;
+		}
+		world = parent->get_transform() * world;
+		cursor = parent;
+	}
+	return world;
+}
+
+void set_world_transform(Node3D *p_node, const Transform3D &p_world) {
+	if (p_node->is_inside_tree()) {
+		p_node->set_global_transform(p_world);
+		return;
+	}
+	Node3D *parent = p_node->is_set_as_top_level() ? nullptr : p_node->get_parent_node_3d();
+	p_node->set_transform(parent == nullptr ? p_world : get_world_transform(parent).affine_inverse() * p_world);
+}
 } // namespace
 
 Transform3D VextoriaRoblox2016TransformMath::from_serialized_rows(const Vector3 &p_position, const Vector3 &p_row0, const Vector3 &p_row1, const Vector3 &p_row2) {
@@ -61,14 +87,14 @@ Transform3D VextoriaRoblox2016TransformMath::rigid_frame(const Transform3D &p_fr
 
 Transform3D VextoriaRoblox2016TransformMath::get_world_cframe(Node3D *p_node) {
 	ERR_FAIL_NULL_V(p_node, Transform3D());
-	return rigid_frame(p_node->get_global_transform());
+	return rigid_frame(get_world_transform(p_node));
 }
 
 void VextoriaRoblox2016TransformMath::set_world_cframe(Node3D *p_node, const Transform3D &p_cframe) {
 	ERR_FAIL_NULL(p_node);
 	// Roblox CFrame is a world-space rigid frame. Keep authored Size outside
 	// this operation, matching PartInstance's separate CFrame and Size state.
-	p_node->set_global_transform(rigid_frame(p_cframe));
+	set_world_transform(p_node, rigid_frame(p_cframe));
 }
 
 bool VextoriaRoblox2016TransformMath::has_imported_world_cframe(Node3D *p_node) {
@@ -94,7 +120,7 @@ void VextoriaRoblox2016TransformMath::commit_imported_world_cframe(Node3D *p_nod
 	if (!has_imported_world_cframe(p_node)) {
 		return;
 	}
-	const Transform3D world_frame = rigid_frame(p_node->get_global_transform());
+	const Transform3D world_frame = rigid_frame(get_world_transform(p_node));
 	p_node->set_meta(SNAME("_vextoria_roblox2016_imported_cframe"), world_frame);
 }
 

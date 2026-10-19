@@ -82,6 +82,8 @@ protected:
 
 public:
 	VextoriaSpatialInstance();
+	Transform3D get_cframe();
+	void set_cframe(const Transform3D &p_cframe);
 	String get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const;
 	bool is_archivable() const { return is_vextoria_archivable(); }
 	void set_archivable(bool p_archivable);
@@ -159,6 +161,8 @@ protected:
 public:
 	Part();
 	~Part();
+	Transform3D get_cframe();
+	void set_cframe(const Transform3D &p_cframe);
 	String get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const;
 	bool is_render_batched() const { return render_batched; }
 	bool has_native_renderer() const { return render_owner.is_valid(); }

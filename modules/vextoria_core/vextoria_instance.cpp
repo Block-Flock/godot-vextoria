@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "vextoria_instance.h"
+#include "vextoria_roblox2016_transform_math.h"
 #include "vextoria_scene_hierarchy.h"
 
 #include "vextoria_part_renderer.h"
@@ -237,6 +238,14 @@ void VextoriaSpatialInstance::set_tags(const PackedStringArray &p_tags) {
 	set_instance_tags_with_notifications(this, p_tags);
 }
 
+Transform3D VextoriaSpatialInstance::get_cframe() {
+	return VextoriaRoblox2016TransformMath::get_world_cframe(this);
+}
+
+void VextoriaSpatialInstance::set_cframe(const Transform3D &p_cframe) {
+	VextoriaRoblox2016TransformMath::set_world_cframe(this, p_cframe);
+}
+
 bool VextoriaSpatialInstance::is_locked() const {
 	return is_vextoria_edit_locked();
 }
@@ -247,6 +256,8 @@ void VextoriaSpatialInstance::set_locked(bool p_locked) {
 
 void VextoriaSpatialInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_unique_sibling_name", "sibling_container", "requested_name", "reserved_names"), &VextoriaSpatialInstance::get_unique_sibling_name);
+	ClassDB::bind_method(D_METHOD("get_cframe"), &VextoriaSpatialInstance::get_cframe);
+	ClassDB::bind_method(D_METHOD("set_cframe", "cframe"), &VextoriaSpatialInstance::set_cframe);
 	ClassDB::bind_method(D_METHOD("is_archivable"), &VextoriaSpatialInstance::is_archivable);
 	ClassDB::bind_method(D_METHOD("set_archivable", "archivable"), &VextoriaSpatialInstance::set_archivable);
 	ClassDB::bind_method(D_METHOD("get_tags"), &VextoriaSpatialInstance::get_tags);
@@ -264,6 +275,9 @@ void VextoriaSpatialInstance::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "Tags"), "set_tags", "get_tags");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "Locked"), "set_locked", "is_locked");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "RobloxVisible"), "set_roblox_visible", "is_roblox_visible");
+	// CFrame is the computed rigid world frame; Godot's local Transform3D remains
+	// the serialized source so scene loading cannot apply this value twice.
+	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM3D, "CFrame", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR), "set_cframe", "get_cframe");
 }
 
 void VextoriaSpatialInstance::set_roblox_visible(bool p_visible) {
@@ -1101,8 +1115,18 @@ String Part::get_unique_sibling_name(Node *p_sibling_container, const String &p_
 	return resolve_unique_instance_sibling_name(this, p_sibling_container, p_requested_name, p_reserved_names);
 }
 
+Transform3D Part::get_cframe() {
+	return VextoriaRoblox2016TransformMath::get_world_cframe(this);
+}
+
+void Part::set_cframe(const Transform3D &p_cframe) {
+	VextoriaRoblox2016TransformMath::set_world_cframe(this, p_cframe);
+}
+
 void Part::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_unique_sibling_name", "sibling_container", "requested_name", "reserved_names"), &Part::get_unique_sibling_name);
+	ClassDB::bind_method(D_METHOD("get_cframe"), &Part::get_cframe);
+	ClassDB::bind_method(D_METHOD("set_cframe", "cframe"), &Part::set_cframe);
 	ClassDB::bind_method(D_METHOD("is_render_batched"), &Part::is_render_batched);
 	ClassDB::bind_method(D_METHOD("has_native_renderer"), &Part::has_native_renderer);
 	ADD_SIGNAL(MethodInfo("vextoria_batch_state_changed", PropertyInfo(Variant::BOOL, "batched")));
@@ -1150,6 +1174,7 @@ void Part::_bind_methods() {
 			PropertyInfo(Variant::NIL, "previous", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT),
 			PropertyInfo(Variant::NIL, "current", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT)));
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "Size"), "set_size", "get_size");
+	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM3D, "CFrame", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR), "set_cframe", "get_cframe");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "Shape", PROPERTY_HINT_ENUM, "Brick,Sphere,Cylinder,Cone,Wedge,Corner,Bevel,Concave,Truss,Frame,Octant,Torus,BeveledCorner,ConcaveCorner,TriangleCorner,TriangleConcaveCorner"), "set_shape_kind", "get_shape_kind");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "Material", PROPERTY_HINT_ENUM, "SmoothPlastic,Brick,Concrete,Dirt,Fabric,Grass,Ice,Marble,Metal,MetalGrid,MetalPlate,Neon,Planks,Plastic,Plywood,RustyIron,Sand,Sandstone,Snow,Stone,Wood"), "set_material_kind", "get_material_kind");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "Geometry", PROPERTY_HINT_ENUM, "Brick,Wedge,Resource"), "set_builtin_geometry_kind", "get_builtin_geometry_kind");

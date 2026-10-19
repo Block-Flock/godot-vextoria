@@ -51,6 +51,28 @@ func _run() -> void:
 	assert(child.global_transform.origin.is_equal_approx(target_cframe.origin), "world CFrame setter did not place a scaled-parent child at the requested world position")
 	assert(child.global_transform.basis.orthonormalized().is_equal_approx(target_cframe.basis), "world CFrame setter did not apply the requested rigid world orientation")
 	assert(ClassDB.class_call_static(math_class, "get_world_cframe", child).is_equal_approx(target_cframe), "native world CFrame did not round-trip")
+	var native_spatial: Node3D = ClassDB.class_call_static("VextoriaSceneHierarchy", "create_generic_spatial_instance")
+	parent.add_child(native_spatial)
+	var cframe_editor_property := false
+	for property_info in native_spatial.get_property_list():
+		if property_info.name == "CFrame":
+			cframe_editor_property = (property_info.usage & PROPERTY_USAGE_EDITOR) != 0 and (property_info.usage & PROPERTY_USAGE_STORAGE) == 0
+	assert(cframe_editor_property, "native world CFrame must be Inspector-visible but derived rather than serialized twice")
+	native_spatial.set("CFrame", target_cframe)
+	assert(native_spatial.get("CFrame").is_equal_approx(target_cframe), "native spatial Instance CFrame property did not preserve world frame under scaled parent")
+	var detached_parent := Node3D.new()
+	detached_parent.transform = Transform3D(Basis(Vector3.UP, -0.52).scaled(Vector3(1.5, 2.5, 0.75)), Vector3(3, 7, -6))
+	var detached_spatial: Node3D = ClassDB.class_call_static("VextoriaSceneHierarchy", "create_generic_spatial_instance")
+	detached_parent.add_child(detached_spatial)
+	detached_spatial.set("CFrame", target_cframe)
+	assert(detached_spatial.get("CFrame").is_equal_approx(target_cframe), "native CFrame getter/setter failed before SceneTree attachment")
+	root.add_child(detached_parent)
+	assert(detached_spatial.global_transform.basis.orthonormalized().is_equal_approx(target_cframe.basis)
+		and detached_spatial.global_transform.origin.is_equal_approx(target_cframe.origin), "detached native CFrame changed after entering the SceneTree")
+	var native_model: Node3D = ClassDB.instantiate("Model")
+	root.add_child(native_model)
+	native_model.set("CFrame", target_cframe)
+	assert(native_model.get("CFrame").is_equal_approx(target_cframe), "native Model did not inherit the spatial Instance CFrame property")
 	assert(not ClassDB.class_call_static(math_class, "has_imported_world_cframe", child), "fresh Node unexpectedly has imported CFrame metadata")
 	ClassDB.class_call_static(math_class, "set_imported_world_cframe", child, target_cframe)
 	assert(ClassDB.class_call_static(math_class, "has_imported_world_cframe", child), "native importer did not retain authored world CFrame")
@@ -72,9 +94,9 @@ func _run() -> void:
 	var part: Node3D = ClassDB.instantiate("Part")
 	root.add_child(part)
 	part.set("Size", Vector3(2.0, 3.0, 4.0))
-	ClassDB.class_call_static(math_class, "set_world_cframe", part, target_cframe)
+	part.set("CFrame", target_cframe)
 	assert(part.get("Size") == Vector3(2.0, 3.0, 4.0), "setting CFrame must not overwrite Part.Size")
-	assert(ClassDB.class_call_static(math_class, "get_world_cframe", part).is_equal_approx(target_cframe), "native Part CFrame did not round-trip")
+	assert(part.get("CFrame").is_equal_approx(target_cframe), "native Part CFrame property did not round-trip")
 
 	# Roblox-main/App/v8datamodel/Attachment.cpp keeps Axis authoritative when
 	# SecondaryAxis changes and composes/decomposes Attachment rotation in XYZ order.
@@ -101,5 +123,5 @@ func _run() -> void:
 	attachment_instance.set("RobloxVisible", true)
 	assert(attachment_instance.get("RobloxVisible") == true, "native Attachment.Visible property did not round-trip")
 	assert(attachment_instance.is_visible(), "Roblox Attachment.Visible altered Godot subtree visibility")
-	print("VEXTORIA_NATIVE_TRANSFORM_MATH_PASS serialized_rows weld_forward_reverse motor6d relative local_size world_cframe_scaled_parent imported_metadata_clone_editor_commit part_size attachment_axis_projection_xyz_euler native_attachment_instance_visible_isolated")
+	print("VEXTORIA_NATIVE_TRANSFORM_MATH_PASS serialized_rows weld_forward_reverse motor6d relative local_size native_cframe_property_scaled_parent imported_metadata_clone_editor_commit part_size attachment_axis_projection_xyz_euler native_attachment_instance_visible_isolated")
 	quit(0)
