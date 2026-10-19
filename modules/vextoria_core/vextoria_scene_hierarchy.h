@@ -28,6 +28,7 @@ public:
 	static Node *find_instance_child_by_name(Node *p_parent, const String &p_name);
 	static Array get_instance_children(Node *p_parent);
 	static Array get_instance_descendants(Node *p_parent);
+	static Array get_instance_recursive_child_search_order(Node *p_parent);
 	static Node *get_instance_parent(Node *p_node);
 	static bool can_set_instance_parent(Node *p_node, Node *p_parent);
 	static bool is_instance_parent_locked(Node *p_node);

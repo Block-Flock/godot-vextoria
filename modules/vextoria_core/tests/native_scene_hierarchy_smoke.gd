@@ -43,13 +43,15 @@ func _initialize() -> void:
 	parent.add_child(second)
 	parent.add_child(third)
 	var first_child := Node.new()
+	first_child.name = "FirstChild"
 	first_child.set_meta("_vextoria_instance", true)
 	first.add_child(first_child)
 	var godot_helper_between_instances := Node.new()
 	first.add_child(godot_helper_between_instances)
 	var nested_instance := Node.new()
+	nested_instance.name = "Nested"
 	nested_instance.set_meta("_vextoria_instance", true)
-	godot_helper_between_instances.add_child(nested_instance)
+	first_child.add_child(nested_instance)
 	var detached := Node.new()
 	detached.name = "Detached"
 	detached.set_meta("_vextoria_instance", true)
@@ -59,6 +61,8 @@ func _initialize() -> void:
 	_assert_index(third, 2)
 	_assert_index(helper, -1)
 	_assert(_instance_names_from_api(parent) == ["First", "Second", "Third"], "native child API included helpers or changed order")
+	_assert(_recursive_child_search_order(parent) == ["First", "FirstChild", "Nested", "Second", "Third"],
+		"native recursive child search order did not preserve Roblox's actual depth-first subtree visitation or skipped helper Nodes")
 	_assert(_find_instance_child_by_name(parent, "Second") == second, "native direct-name lookup missed a marked Instance child")
 	_assert(_find_instance_child_by_name(parent, "GodotHelper") == null, "native direct-name lookup exposed an unmarked helper Node")
 	_assert(_find_instance_child_by_name(parent, "Missing") == null, "native direct-name lookup returned a node for a missing name")
@@ -206,6 +210,13 @@ func _instance_names_from_api(parent: Node) -> Array[String]:
 
 func _instance_parent_from_api(node: Node) -> Node:
 	return ClassDB.class_call_static("VextoriaSceneHierarchy", "get_instance_parent", node)
+
+func _recursive_child_search_order(parent: Node) -> Array[String]:
+	var result: Array[String] = []
+	var nodes: Array = ClassDB.class_call_static("VextoriaSceneHierarchy", "get_instance_recursive_child_search_order", parent)
+	for node: Node in nodes:
+		result.append(node.name)
+	return result
 
 func _is_instance_ancestor_of(ancestor: Node, descendant: Node) -> bool:
 	return ClassDB.class_call_static("VextoriaSceneHierarchy", "is_instance_ancestor_of", ancestor, descendant)

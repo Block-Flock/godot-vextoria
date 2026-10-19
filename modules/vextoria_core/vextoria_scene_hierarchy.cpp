@@ -165,6 +165,13 @@ Array VextoriaSceneHierarchy::get_instance_descendants(Node *p_parent) {
 	return result;
 }
 
+Array VextoriaSceneHierarchy::get_instance_recursive_child_search_order(Node *p_parent) {
+	// Roblox's recursive FindFirstChild implementation visits each child subtree
+	// before advancing to the next sibling. Preserve that observable preorder,
+	// while leaving the current parent's direct-child check to the caller.
+	return get_instance_descendants(p_parent);
+}
+
 Node *VextoriaSceneHierarchy::get_instance_parent(Node *p_node) {
 	if (!is_instance_node(p_node)) {
 		return nullptr;
@@ -343,6 +350,7 @@ void VextoriaSceneHierarchy::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("find_instance_child_by_name", "parent", "name"), &VextoriaSceneHierarchy::find_instance_child_by_name);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_children", "parent"), &VextoriaSceneHierarchy::get_instance_children);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_descendants", "parent"), &VextoriaSceneHierarchy::get_instance_descendants);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_recursive_child_search_order", "parent"), &VextoriaSceneHierarchy::get_instance_recursive_child_search_order);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_parent", "node"), &VextoriaSceneHierarchy::get_instance_parent);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("can_set_instance_parent", "node", "parent"), &VextoriaSceneHierarchy::can_set_instance_parent);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("is_instance_parent_locked", "node"), &VextoriaSceneHierarchy::is_instance_parent_locked);
