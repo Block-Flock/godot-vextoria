@@ -51,6 +51,7 @@ class VextoriaExplorerTree : public Tree {
 	};
 
 	Node *source_root = nullptr;
+	int64_t selection_owner_id = 0;
 	HashMap<Node *, TreeItem *> node_items;
 	HashMap<TreeItem *, Node *> item_nodes;
 	HashMap<Node *, NodePresentation> node_presentations;
@@ -79,6 +80,7 @@ protected:
 public:
 	void set_source_root(Node *p_root);
 	Node *get_source_root() const { return source_root; }
+	bool set_selection_owner(int64_t p_owner_object_id);
 	TreeItem *get_item_for_node(Node *p_node) const;
 	TreeItem *ensure_item_for_node(Node *p_node);
 	bool set_instance_selected(Node *p_node, bool p_selected);

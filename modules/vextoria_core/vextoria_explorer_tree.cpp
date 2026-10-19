@@ -32,8 +32,10 @@
 
 #include "core/object/callable_mp.h"
 #include "core/object/class_db.h"
+#include "core/input/input.h"
 #include "scene/resources/texture.h"
 #include "scene/main/scene_tree.h"
+#include "vextoria_creator_selection_state.h"
 #include "vextoria_scene_hierarchy.h"
 
 static void _sync_explorer_button(TreeItem *p_item, int p_id, bool p_enabled, const Ref<Texture2D> &p_icon, const String &p_tooltip) {
@@ -55,6 +57,7 @@ static void _sync_explorer_button(TreeItem *p_item, int p_id, bool p_enabled, co
 void VextoriaExplorerTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_source_root", "root"), &VextoriaExplorerTree::set_source_root);
 	ClassDB::bind_method(D_METHOD("get_source_root"), &VextoriaExplorerTree::get_source_root);
+	ClassDB::bind_method(D_METHOD("set_selection_owner", "owner_object_id"), &VextoriaExplorerTree::set_selection_owner);
 	ClassDB::bind_method(D_METHOD("get_item_for_node", "node"), &VextoriaExplorerTree::get_item_for_node);
 	ClassDB::bind_method(D_METHOD("ensure_item_for_node", "node"), &VextoriaExplorerTree::ensure_item_for_node);
 	ClassDB::bind_method(D_METHOD("set_instance_selected", "node", "selected"), &VextoriaExplorerTree::set_instance_selected);
@@ -129,6 +132,17 @@ void VextoriaExplorerTree::_multi_selected(TreeItem *p_item, int p_column, bool 
 	}
 	Node *node = get_node_for_item(p_item);
 	if (node != nullptr) {
+		if (selection_owner_id != 0 && source_root != nullptr) {
+			if (p_selected) {
+				Input *input = Input::get_singleton();
+				if (input != nullptr && !input->is_key_pressed(Key::CTRL) && !input->is_key_pressed(Key::SHIFT)) {
+					VextoriaCreatorSelectionState::clear_selection(selection_owner_id);
+				}
+				VextoriaCreatorSelectionState::select_node(selection_owner_id, source_root, node);
+			} else {
+				VextoriaCreatorSelectionState::deselect_node(selection_owner_id, node);
+			}
+		}
 		emit_signal(SNAME("instance_selected"), node, p_selected);
 	}
 }
@@ -140,9 +154,18 @@ void VextoriaExplorerTree::set_source_root(Node *p_root) {
 	_clear_items();
 	search_query = String();
 	source_root = p_root;
+	selection_owner_id = 0;
 	if (is_inside_tree() && source_root) {
 		_add_subtree(source_root);
 	}
+}
+
+bool VextoriaExplorerTree::set_selection_owner(int64_t p_owner_object_id) {
+	if (p_owner_object_id == 0 || source_root == nullptr) {
+		return false;
+	}
+	selection_owner_id = p_owner_object_id;
+	return true;
 }
 
 TreeItem *VextoriaExplorerTree::get_item_for_node(Node *p_node) const {

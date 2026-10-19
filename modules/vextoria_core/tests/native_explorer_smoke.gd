@@ -60,9 +60,26 @@ func _run() -> void:
 	assert(part_item.get_child_count() == 0, "native Part internals leaked into Explorer")
 	assert(not part_item.is_editable(0), "native Tree made a row editable without Node presentation metadata")
 	assert(explorer.call("get_node_for_item", part_item) == part, "item identity did not resolve to native Part")
+	var selection_owner_id := 9021601
+	var selection_changes: Array = []
+	var selection_callback := func(owner_id: int, node: Node, selected: bool) -> void:
+		selection_changes.append([owner_id, node, selected])
+	assert(ClassDB.class_call_static("VextoriaCreatorSelectionState", "bind_owner", selection_owner_id, source, selection_callback),
+		"native Creator selection owner did not bind to its root")
+	assert(explorer.call("set_selection_owner", selection_owner_id), "native Explorer did not accept its Creator selection owner")
+	assert(ClassDB.class_call_static("VextoriaCreatorSelectionState", "select_node", selection_owner_id, source, model),
+		"native Creator selection did not accept an in-root Model")
+	selection_changes.clear()
 	explorer.emit_signal("multi_selected", part_item, 0, true)
+	assert(ClassDB.class_call_static("VextoriaCreatorSelectionState", "get_selected_nodes", selection_owner_id, source) == [part],
+		"unmodified native Explorer selection did not replace the prior Creator selection")
+	assert(selection_changes == [[selection_owner_id, model, false], [selection_owner_id, part, true]],
+		"native Explorer selection did not notify Creator of replacement in order")
 	explorer.emit_signal("multi_selected", part_item, 0, false)
+	assert(ClassDB.class_call_static("VextoriaCreatorSelectionState", "get_selected_nodes", selection_owner_id, source).is_empty(),
+		"native Explorer deselection did not update Creator selection")
 	assert(native_selection_events == [[part, true], [part, false]], "native Tree did not emit selection changes with mapped gameplay Node identity")
+	ClassDB.class_call_static("VextoriaCreatorSelectionState", "forget_owner", selection_owner_id)
 	native_selection_events.clear()
 	assert(explorer.call("set_instance_selected", part, true), "native Explorer rejected selection of a mapped Instance")
 	assert(part_item.is_selected(0), "native Explorer did not select the mapped row")
@@ -197,5 +214,5 @@ func _run() -> void:
 	explorer.call("set_source_root", null)
 	detached.free()
 	explorer.free()
-	print("VEXTORIA_NATIVE_EXPLORER_PASS: hierarchy, identity, rename, incremental_search, reparent, order, removal")
+	print("VEXTORIA_NATIVE_EXPLORER_PASS: hierarchy, identity, rename, selection_owner, incremental_search, reparent, order, removal")
 	quit(0)
