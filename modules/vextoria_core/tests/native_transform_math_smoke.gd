@@ -75,5 +75,22 @@ func _run() -> void:
 	ClassDB.class_call_static(math_class, "set_world_cframe", part, target_cframe)
 	assert(part.get("Size") == Vector3(2.0, 3.0, 4.0), "setting CFrame must not overwrite Part.Size")
 	assert(ClassDB.class_call_static(math_class, "get_world_cframe", part).is_equal_approx(target_cframe), "native Part CFrame did not round-trip")
-	print("VEXTORIA_NATIVE_TRANSFORM_MATH_PASS serialized_rows weld_forward_reverse motor6d relative local_size world_cframe_scaled_parent imported_metadata_clone_editor_commit part_size")
+
+	# Roblox-main/App/v8datamodel/Attachment.cpp keeps Axis authoritative when
+	# SecondaryAxis changes and composes/decomposes Attachment rotation in XYZ order.
+	var attachment_basis: Basis = ClassDB.class_call_static(math_class, "attachment_set_axis", Basis.IDENTITY, Vector3(1.0, 2.0, 3.0))
+	assert(attachment_basis.x.is_equal_approx(Vector3(1.0, 2.0, 3.0).normalized()), "native Attachment Axis did not preserve the authored direction")
+	assert(absf(attachment_basis.x.dot(attachment_basis.y)) < 0.00001, "native Attachment Axis setter left non-orthogonal axes")
+	var fixed_axis := attachment_basis.x
+	attachment_basis = ClassDB.class_call_static(math_class, "attachment_set_secondary_axis", attachment_basis, Vector3(0.9, 0.2, -0.1))
+	assert(attachment_basis.x.is_equal_approx(fixed_axis), "native SecondaryAxis setter changed the authored Axis")
+	assert(absf(attachment_basis.x.dot(attachment_basis.y)) < 0.00001, "native SecondaryAxis setter did not project to the orthogonal plane")
+	var set_axes_basis: Basis = ClassDB.class_call_static(math_class, "attachment_set_axes", Basis.IDENTITY, Vector3(0.0, 0.0, 1.0), Vector3(0.0, 1.0, 0.0))
+	assert(set_axes_basis.is_equal_approx(Basis(Vector3.BACK, Vector3.UP, Vector3.LEFT)), "native Attachment SetAxes did not apply the authored XYZ basis")
+	var euler_xyz := Vector3(0.31, -0.62, 1.17)
+	var attachment_xyz: Basis = ClassDB.class_call_static(math_class, "attachment_basis_from_euler_xyz", euler_xyz)
+	assert(attachment_xyz.is_equal_approx(Basis.from_euler(euler_xyz, EULER_ORDER_XYZ)), "native Attachment Euler conversion differs from Roblox XYZ order")
+	var round_trip_xyz: Vector3 = ClassDB.class_call_static(math_class, "attachment_euler_xyz", attachment_xyz)
+	assert(Basis.from_euler(round_trip_xyz, EULER_ORDER_XYZ).is_equal_approx(attachment_xyz), "native Attachment XYZ orientation did not round-trip")
+	print("VEXTORIA_NATIVE_TRANSFORM_MATH_PASS serialized_rows weld_forward_reverse motor6d relative local_size world_cframe_scaled_parent imported_metadata_clone_editor_commit part_size attachment_axis_projection_xyz_euler")
 	quit(0)

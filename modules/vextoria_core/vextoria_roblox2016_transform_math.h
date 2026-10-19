@@ -35,4 +35,9 @@ public:
 	static Transform3D solve_weld_neighbor(const Transform3D &p_known_world, const Transform3D &p_c0, const Transform3D &p_c1, bool p_known_is_part0);
 	static Transform3D solve_motor6d_part1(const Transform3D &p_part0_world, const Transform3D &p_c0, const Transform3D &p_transform, const Transform3D &p_c1);
 	static Transform3D relative_frame(const Transform3D &p_parent_world, const Transform3D &p_child_world);
+	static Basis attachment_set_axis(const Basis &p_basis, const Vector3 &p_axis);
+	static Basis attachment_set_secondary_axis(const Basis &p_basis, const Vector3 &p_secondary_axis);
+	static Basis attachment_set_axes(const Basis &p_basis, const Vector3 &p_axis, const Vector3 &p_secondary_axis);
+	static Basis attachment_basis_from_euler_xyz(const Vector3 &p_euler_radians);
+	static Vector3 attachment_euler_xyz(const Basis &p_basis);
 };
