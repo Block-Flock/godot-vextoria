@@ -33,12 +33,27 @@
 #include "core/templates/hash_map.h"
 #include "scene/gui/tree.h"
 
+class Texture2D;
+
 class VextoriaExplorerTree : public Tree {
 	GDCLASS(VextoriaExplorerTree, Tree);
+
+	struct NodePresentation {
+		Ref<Texture2D> icon;
+		bool renameable = false;
+		bool model_non_editable = false;
+		bool model_editable_color = false;
+		bool linked = false;
+		Ref<Texture2D> linked_icon;
+		String linked_tooltip;
+		bool locked = false;
+		Ref<Texture2D> lock_icon;
+	};
 
 	Node *source_root = nullptr;
 	HashMap<Node *, TreeItem *> node_items;
 	HashMap<TreeItem *, Node *> item_nodes;
+	HashMap<Node *, NodePresentation> node_presentations;
 	String search_query;
 	ObjectID pending_scroll_node;
 	bool order_dirty = false;
@@ -67,6 +82,10 @@ public:
 	TreeItem *ensure_item_for_node(Node *p_node);
 	bool set_instance_selected(Node *p_node, bool p_selected);
 	Node *get_node_for_item(TreeItem *p_item) const;
+	void set_node_class_presentation(Node *p_node, const Ref<Texture2D> &p_icon, bool p_renameable);
+	void set_node_model_presentation(Node *p_node, bool p_non_editable, bool p_editable_color);
+	void set_node_link_presentation(Node *p_node, bool p_linked, const Ref<Texture2D> &p_icon, const String &p_tooltip);
+	void set_node_lock_presentation(Node *p_node, bool p_locked, const Ref<Texture2D> &p_icon);
 	bool refresh_node_presentation(Node *p_node);
 	void sync_item_name(TreeItem *p_item);
 	bool is_node_excluded(Node *p_node) const;

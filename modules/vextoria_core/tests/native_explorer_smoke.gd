@@ -17,9 +17,9 @@ func _run() -> void:
 
 	var model: Node3D = ClassDB.instantiate("Model")
 	model.name = "House"
-	model.set_meta("_vextoria_explorer_icon", ImageTexture.create_from_image(Image.create(2, 2, false, Image.FORMAT_RGBA8)))
-	model.set_meta("_vextoria_explorer_renameable", true)
-	model.set_meta("_vextoria_explorer_model_editable_color", true)
+	var model_icon := ImageTexture.create_from_image(Image.create(2, 2, false, Image.FORMAT_RGBA8))
+	explorer.call("set_node_class_presentation", model, model_icon, true)
+	explorer.call("set_node_model_presentation", model, false, true)
 	source.add_child(model)
 	var folder: Node = ClassDB.instantiate("Folder")
 	folder.name = "Door Group"
@@ -46,9 +46,11 @@ func _run() -> void:
 		native_selection_events.append([node, selected])
 	)
 	assert(model_item.get_parent() == source_item, "Model is not under Workspace")
-	assert(model_item.get_icon(0) == model.get_meta("_vextoria_explorer_icon"), "native Tree did not apply the Node-owned class icon")
-	assert(model_item.is_editable(0), "native Tree did not apply Node-owned rename policy")
+	assert(model_item.get_icon(0) == model_icon, "native Tree did not apply its class icon presentation")
+	assert(model_item.is_editable(0), "native Tree did not apply its rename policy")
 	assert(model_item.get_custom_color(0) == Color("#FFBC58"), "native Tree did not apply linked-model child color")
+	assert(not model.has_meta("_vextoria_explorer_icon") and not model.has_meta("_vextoria_explorer_renameable"),
+		"Explorer presentation was duplicated onto the gameplay Node")
 	assert(model_item.is_collapsed(), "native Tree did not collapse a newly admitted non-root row")
 	assert(model_item.has_meta("_vextoria_presentation_initialized"), "native Tree did not record its presentation initialization")
 	assert(not model_item.has_meta("_vextoria_decorated"), "native presentation bypassed Creator's deferred-decoration completion marker")
@@ -92,18 +94,15 @@ func _run() -> void:
 	assert(not explorer.call("is_node_excluded", model), "native Explorer incorrectly excluded a visible node")
 	var link_icon := ImageTexture.create_from_image(Image.create(2, 2, false, Image.FORMAT_RGBA8))
 	var lock_icon := ImageTexture.create_from_image(Image.create(2, 2, false, Image.FORMAT_RGBA8))
-	model.set_meta("_vextoria_explorer_link_icon", link_icon)
-	model.set_meta("_vextoria_explorer_link_tooltip", "Linked Model (fixture)")
-	model.set_meta("_vextoria_explorer_linked", true)
-	model.set_meta("_vextoria_explorer_lock_icon", lock_icon)
-	model.set_meta("_vextoria_explorer_locked", true)
-	assert(explorer.call("refresh_node_presentation", model), "native presentation refresh rejected a mapped Node")
+	explorer.call("set_node_link_presentation", model, true, link_icon, "Linked Model (fixture)")
+	explorer.call("set_node_lock_presentation", model, true, lock_icon)
+	assert(not model.has_meta("_vextoria_explorer_linked") and not model.has_meta("_vextoria_explorer_locked"),
+		"link/lock presentation was duplicated onto the gameplay Node")
 	assert(model_item.get_button_by_id(0, 1) >= 0, "native Tree did not display linked-model badge")
 	assert(model_item.get_button_tooltip_text(0, model_item.get_button_by_id(0, 1)) == "Linked Model (fixture)", "native Tree lost linked-model tooltip")
 	assert(model_item.get_button_by_id(0, 2) >= 0, "native Tree did not display locked badge")
-	model.set_meta("_vextoria_explorer_linked", false)
-	model.set_meta("_vextoria_explorer_locked", false)
-	explorer.call("refresh_node_presentation", model)
+	explorer.call("set_node_link_presentation", model, false, link_icon, "")
+	explorer.call("set_node_lock_presentation", model, false, lock_icon)
 	assert(model_item.get_button_by_id(0, 1) < 0 and model_item.get_button_by_id(0, 2) < 0, "native Tree did not remove cleared presentation badges")
 
 	part.name = "Red Door"

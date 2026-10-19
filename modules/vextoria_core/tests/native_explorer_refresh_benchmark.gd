@@ -26,8 +26,7 @@ func _run() -> void:
 	explorer.call("apply_search_filter", "no-match")
 	var started_usec := Time.get_ticks_usec()
 	for row in rows:
-		row.set_meta("_vextoria_explorer_locked", true)
-		explorer.call("refresh_node_presentation", row)
+		explorer.call("set_node_lock_presentation", row, true, null)
 	await process_frame
 	await process_frame
 	var elapsed_ms := float(Time.get_ticks_usec() - started_usec) / 1000.0

@@ -36,17 +36,6 @@
 #include "scene/main/scene_tree.h"
 #include "vextoria_scene_hierarchy.h"
 
-static Ref<Texture2D> _get_node_texture_meta(Node *p_node, const StringName &p_key) {
-	if (p_node == nullptr || !p_node->has_meta(p_key)) {
-		return Ref<Texture2D>();
-	}
-	Variant value = p_node->get_meta(p_key);
-	if (value.get_type() != Variant::OBJECT) {
-		return Ref<Texture2D>();
-	}
-	return Ref<Texture2D>(Object::cast_to<Texture2D>(value));
-}
-
 static void _sync_explorer_button(TreeItem *p_item, int p_id, bool p_enabled, const Ref<Texture2D> &p_icon, const String &p_tooltip) {
 	const int button_index = p_item->get_button_by_id(0, p_id);
 	if (!p_enabled || p_icon.is_null()) {
@@ -70,6 +59,10 @@ void VextoriaExplorerTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("ensure_item_for_node", "node"), &VextoriaExplorerTree::ensure_item_for_node);
 	ClassDB::bind_method(D_METHOD("set_instance_selected", "node", "selected"), &VextoriaExplorerTree::set_instance_selected);
 	ClassDB::bind_method(D_METHOD("get_node_for_item", "item"), &VextoriaExplorerTree::get_node_for_item);
+	ClassDB::bind_method(D_METHOD("set_node_class_presentation", "node", "icon", "renameable"), &VextoriaExplorerTree::set_node_class_presentation);
+	ClassDB::bind_method(D_METHOD("set_node_model_presentation", "node", "non_editable", "editable_color"), &VextoriaExplorerTree::set_node_model_presentation);
+	ClassDB::bind_method(D_METHOD("set_node_link_presentation", "node", "linked", "icon", "tooltip"), &VextoriaExplorerTree::set_node_link_presentation);
+	ClassDB::bind_method(D_METHOD("set_node_lock_presentation", "node", "locked", "icon"), &VextoriaExplorerTree::set_node_lock_presentation);
 	ClassDB::bind_method(D_METHOD("refresh_node_presentation", "node"), &VextoriaExplorerTree::refresh_node_presentation);
 	ClassDB::bind_method(D_METHOD("sync_item_name", "item"), &VextoriaExplorerTree::sync_item_name);
 	ClassDB::bind_method(D_METHOD("is_node_excluded", "node"), &VextoriaExplorerTree::is_node_excluded);
@@ -199,18 +192,15 @@ bool VextoriaExplorerTree::refresh_node_presentation(Node *p_node) {
 		item->set_collapsed(true);
 	}
 
-	Ref<Texture2D> icon = _get_node_texture_meta(p_node, SNAME("_vextoria_explorer_icon"));
-	if (icon.is_valid()) {
-		item->set_icon(0, icon);
+	NodePresentation *presentation = node_presentations.getptr(p_node);
+	if (presentation != nullptr && presentation->icon.is_valid()) {
+		item->set_icon(0, presentation->icon);
 	}
-	const bool renameable = p_node->has_meta(SNAME("_vextoria_explorer_renameable")) &&
-			p_node->get_meta(SNAME("_vextoria_explorer_renameable")).booleanize();
+	const bool renameable = presentation != nullptr && presentation->renameable;
 	item->set_editable(0, renameable);
 
-	const bool model_non_editable = p_node->has_meta(SNAME("_vextoria_explorer_model_non_editable")) &&
-			p_node->get_meta(SNAME("_vextoria_explorer_model_non_editable")).booleanize();
-	const bool model_editable_color = p_node->has_meta(SNAME("_vextoria_explorer_model_editable_color")) &&
-			p_node->get_meta(SNAME("_vextoria_explorer_model_editable_color")).booleanize();
+	const bool model_non_editable = presentation != nullptr && presentation->model_non_editable;
+	const bool model_editable_color = presentation != nullptr && presentation->model_editable_color;
 	item->set_meta(SNAME("_model_non_editable"), model_non_editable);
 	if (model_editable_color) {
 		item->set_custom_color(0, Color("#FFBC58"));
@@ -223,15 +213,12 @@ bool VextoriaExplorerTree::refresh_node_presentation(Node *p_node) {
 		item->set_visible(!force_invisible && !model_non_editable);
 	}
 
-	const bool linked = p_node->has_meta(SNAME("_vextoria_explorer_linked")) &&
-			p_node->get_meta(SNAME("_vextoria_explorer_linked")).booleanize();
-	const String linked_tooltip = p_node->has_meta(SNAME("_vextoria_explorer_link_tooltip")) ?
-			String(p_node->get_meta(SNAME("_vextoria_explorer_link_tooltip"))) : String();
-	_sync_explorer_button(item, 1, linked, _get_node_texture_meta(p_node, SNAME("_vextoria_explorer_link_icon")), linked_tooltip);
+	const bool linked = presentation != nullptr && presentation->linked;
+	const String linked_tooltip = presentation != nullptr ? presentation->linked_tooltip : String();
+	_sync_explorer_button(item, 1, linked, presentation != nullptr ? presentation->linked_icon : Ref<Texture2D>(), linked_tooltip);
 
-	const bool locked = p_node->has_meta(SNAME("_vextoria_explorer_locked")) &&
-			p_node->get_meta(SNAME("_vextoria_explorer_locked")).booleanize();
-	_sync_explorer_button(item, 2, locked, _get_node_texture_meta(p_node, SNAME("_vextoria_explorer_lock_icon")), "Locked");
+	const bool locked = presentation != nullptr && presentation->locked;
+	_sync_explorer_button(item, 2, locked, presentation != nullptr ? presentation->lock_icon : Ref<Texture2D>(), "Locked");
 
 	item->set_meta(SNAME("_vextoria_presentation_initialized"), true);
 	if (!search_query.is_empty()) {
@@ -239,6 +226,47 @@ bool VextoriaExplorerTree::refresh_node_presentation(Node *p_node) {
 		set_process(true);
 	}
 	return true;
+}
+
+void VextoriaExplorerTree::set_node_class_presentation(Node *p_node, const Ref<Texture2D> &p_icon, bool p_renameable) {
+	if (p_node == nullptr) {
+		return;
+	}
+	NodePresentation &presentation = node_presentations[p_node];
+	presentation.icon = p_icon;
+	presentation.renameable = p_renameable;
+	refresh_node_presentation(p_node);
+}
+
+void VextoriaExplorerTree::set_node_model_presentation(Node *p_node, bool p_non_editable, bool p_editable_color) {
+	if (p_node == nullptr) {
+		return;
+	}
+	NodePresentation &presentation = node_presentations[p_node];
+	presentation.model_non_editable = p_non_editable;
+	presentation.model_editable_color = p_editable_color;
+	refresh_node_presentation(p_node);
+}
+
+void VextoriaExplorerTree::set_node_link_presentation(Node *p_node, bool p_linked, const Ref<Texture2D> &p_icon, const String &p_tooltip) {
+	if (p_node == nullptr) {
+		return;
+	}
+	NodePresentation &presentation = node_presentations[p_node];
+	presentation.linked = p_linked;
+	presentation.linked_icon = p_icon;
+	presentation.linked_tooltip = p_tooltip;
+	refresh_node_presentation(p_node);
+}
+
+void VextoriaExplorerTree::set_node_lock_presentation(Node *p_node, bool p_locked, const Ref<Texture2D> &p_icon) {
+	if (p_node == nullptr) {
+		return;
+	}
+	NodePresentation &presentation = node_presentations[p_node];
+	presentation.locked = p_locked;
+	presentation.lock_icon = p_icon;
+	refresh_node_presentation(p_node);
 }
 
 void VextoriaExplorerTree::sync_item_name(TreeItem *p_item) {
@@ -358,6 +386,7 @@ void VextoriaExplorerTree::_remove_item(TreeItem *p_item) {
 	emit_signal(SNAME("item_removing"), node, p_item);
 	item_nodes.erase(p_item);
 	node_items.erase(node);
+	node_presentations.erase(node);
 }
 
 void VextoriaExplorerTree::_clear_items() {
@@ -367,6 +396,7 @@ void VextoriaExplorerTree::_clear_items() {
 	clear();
 	node_items.clear();
 	item_nodes.clear();
+	node_presentations.clear();
 	order_dirty = false;
 	search_filter_dirty = false;
 	pending_scroll_node = ObjectID();
