@@ -133,7 +133,7 @@ int VextoriaRoblox2016ToolAssemblyDriver::configure_tool_graph(Node3D *p_handle,
 	std::unordered_set<uint64_t> candidate_ids;
 	for (Node *node : descendants) {
 		PhysicsBody3D *body = Object::cast_to<PhysicsBody3D>(node);
-		if (body == nullptr) {
+		if (body == nullptr || !body->is_vextoria_instance_native()) {
 			continue;
 		}
 		const uint64_t id = body->get_instance_id();
