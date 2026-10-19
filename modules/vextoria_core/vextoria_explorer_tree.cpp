@@ -34,6 +34,7 @@
 #include "core/object/class_db.h"
 #include "scene/resources/texture.h"
 #include "scene/main/scene_tree.h"
+#include "vextoria_scene_hierarchy.h"
 
 static Ref<Texture2D> _get_node_texture_meta(Node *p_node, const StringName &p_key) {
 	if (p_node == nullptr || !p_node->has_meta(p_key)) {
@@ -329,7 +330,7 @@ void VextoriaExplorerTree::_add_subtree(Node *p_node, bool p_recurse) {
 		}
 		parent_item = node_items[parent];
 	}
-	if ((p_node == source_root || p_node->has_meta(SNAME("_vextoria_instance"))) && !node_items.has(p_node)) {
+	if ((p_node == source_root || VextoriaSceneHierarchy::is_instance_node(p_node)) && !node_items.has(p_node)) {
 		TreeItem *item = create_item(parent_item);
 		item->set_text(0, p_node->get_name());
 		node_items.insert(p_node, item);

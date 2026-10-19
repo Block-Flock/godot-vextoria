@@ -18,10 +18,8 @@ func _initialize() -> void:
 	_assert(ClassDB.is_parent_class("Model", "VextoriaSpatialInstance"),
 		"native Model does not inherit the shared spatial Instance base")
 	if generic_instance != null:
-		generic_instance.set_meta("_vextoria_instance", true)
 		root.add_child(generic_instance)
 	if generic_spatial != null:
-		generic_spatial.set_meta("_vextoria_instance", true)
 		root.add_child(generic_spatial)
 
 	var parent := Node.new()
@@ -120,7 +118,6 @@ func _initialize() -> void:
 	_assert(locked_folder != null, "native Folder class could not be instantiated for parent-lock coverage")
 	if locked_folder != null:
 		locked_folder.name = "ParentLockedFolder"
-		locked_folder.set_meta("_vextoria_instance", true)
 		parent.add_child(locked_folder)
 		locked_folder.call("set_locked", true)
 		_assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", locked_folder, second), "Studio edit Locked incorrectly blocked parent changes")

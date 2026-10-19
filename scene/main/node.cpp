@@ -2123,6 +2123,13 @@ Node *Node::get_parent() const {
 }
 
 bool Node::_is_vextoria_instance_node() const {
+	return is_vextoria_instance_native();
+}
+
+bool Node::is_vextoria_instance_native() const {
+	if (data.vextoria_instance_native) {
+		return true;
+	}
 	static const StringName vextoria_instance_meta("_vextoria_instance");
 	return has_meta(vextoria_instance_meta) && get_meta(vextoria_instance_meta).booleanize();
 }

@@ -17,22 +17,27 @@ func _run() -> void:
 
 	var model: Node3D = ClassDB.instantiate("Model")
 	model.name = "House"
-	model.set_meta("_vextoria_instance", true)
 	model.set_meta("_vextoria_explorer_icon", ImageTexture.create_from_image(Image.create(2, 2, false, Image.FORMAT_RGBA8)))
 	model.set_meta("_vextoria_explorer_renameable", true)
 	model.set_meta("_vextoria_explorer_model_editable_color", true)
 	source.add_child(model)
 	var folder: Node = ClassDB.instantiate("Folder")
 	folder.name = "Door Group"
-	folder.set_meta("_vextoria_instance", true)
 	model.add_child(folder)
 	var implementation := Node.new()
 	implementation.name = "Implementation"
 	folder.add_child(implementation)
 	var part: RigidBody3D = ClassDB.instantiate("Part")
 	part.name = "Door"
-	part.set_meta("_vextoria_instance", true)
 	implementation.add_child(part)
+	assert(not model.has_meta("_vextoria_instance"),
+		"native Model fixture should prove class-based identity without compatibility metadata")
+	assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "is_instance_node", model),
+		"native Model was not recognized as an Instance by its engine type")
+	assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "is_instance_node", folder),
+		"native Folder was not recognized as an Instance by its engine type")
+	assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "is_instance_node", part),
+		"native Part was not recognized as an Instance by its engine type")
 	var model_item: TreeItem = explorer.call("get_item_for_node", model)
 	var folder_item: TreeItem = explorer.call("get_item_for_node", folder)
 	var part_item: TreeItem = explorer.call("get_item_for_node", part)

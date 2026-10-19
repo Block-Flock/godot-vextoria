@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "vextoria_instance.h"
+#include "vextoria_scene_hierarchy.h"
 
 #include "vextoria_part_renderer.h"
 
@@ -83,7 +84,7 @@ static String resolve_unique_instance_sibling_name(const Node *p_subject, Node *
 	if (p_sibling_container) {
 		for (int i = 0; i < p_sibling_container->get_child_count(false); ++i) {
 			Node *sibling = p_sibling_container->get_child(i, false);
-			if (sibling != p_subject && sibling->has_meta(SNAME("_vextoria_instance"))) {
+			if (sibling != p_subject && VextoriaSceneHierarchy::is_instance_node(sibling)) {
 				used_names.insert(sibling->get_name());
 			}
 		}
@@ -136,9 +137,14 @@ static String resolve_unique_instance_sibling_name(const Node *p_subject, Node *
 }
 
 VextoriaInstance::VextoriaInstance() {
+	set_vextoria_instance_native(true);
 	// Roblox Folder/Script have no CFrame, but spatial descendants must still
 	// inherit the nearest Model/Part frame. Node3D honors this opt-in marker.
 	set_meta("_vextoria_spatial_passthrough", true);
+}
+
+VextoriaSpatialInstance::VextoriaSpatialInstance() {
+	set_vextoria_instance_native(true);
 }
 
 String VextoriaInstance::get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const {
@@ -342,6 +348,7 @@ void Model::_bind_methods() {
 }
 
 Part::Part() {
+	set_vextoria_instance_native(true);
 	box_mesh.instantiate();
 	box_shape.instantiate();
 	material.instantiate();

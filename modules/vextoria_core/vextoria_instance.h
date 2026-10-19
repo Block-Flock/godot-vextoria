@@ -84,6 +84,7 @@ protected:
 	static void _bind_methods();
 
 public:
+	VextoriaSpatialInstance();
 	String get_unique_sibling_name(Node *p_sibling_container, const String &p_requested_name, const PackedStringArray &p_reserved_names) const;
 	bool is_archivable() const { return archivable; }
 	void set_archivable(bool p_archivable);
