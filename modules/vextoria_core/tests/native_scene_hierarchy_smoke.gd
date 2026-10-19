@@ -228,6 +228,18 @@ func _initialize() -> void:
 	_assert(_instance_names_from_api(parent) == ["Third", "Second", "First", "Detached"], "native child API omitted attached Instance")
 
 	parent.free()
+	generic_instance.free()
+	generic_spatial.free()
+	attachment.free()
+	attachment_part.free()
+	attachment_workspace.free()
+	attachment_folder.free()
+	# Native Parts and their physics/rendering RIDs are released on server sync.
+	# Let those teardown notifications drain before SceneTree reports ObjectDB/RID
+	# leaks, so this smoke validates clean destruction as well as hierarchy logic.
+	await process_frame
+	await physics_frame
+	await process_frame
 	if failed:
 		quit(1)
 	else:
