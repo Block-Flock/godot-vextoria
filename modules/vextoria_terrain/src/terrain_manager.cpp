@@ -7,6 +7,7 @@
 #include "scene/resources/3d/concave_polygon_shape_3d.h"
 #include "scene/3d/camera_3d.h"
 #include "scene/3d/physics/static_body_3d.h"
+#include "scene/3d/physics/vextoria_collision_layers.h"
 #include "core/os/time.h"
 #include "scene/main/viewport.h"
 #include "core/string/print_string.h"
@@ -624,8 +625,8 @@ void TerrainManager::_set_mesh_instance(int cx, int cz, int lod, const Ref<Array
 		if (shape.is_valid()) {
 			StaticBody3D *body = memnew(StaticBody3D);
 			body->set_name("Collision");
-			body->set_collision_layer(1);
-			body->set_collision_mask(1);
+			body->set_collision_layer(VextoriaCollisionLayers::ROBLOX_STATIC);
+			body->set_collision_mask(VextoriaCollisionLayers::ROBLOX_DYNAMIC);
 			CollisionShape3D *collider = memnew(CollisionShape3D);
 			collider->set_name("CollisionShape3D");
 			collider->set_shape(shape);

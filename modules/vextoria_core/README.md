@@ -94,20 +94,25 @@ the active render policy during native construction. Complete legacy rendering s
 and touch/assembly mirrors remain outside this slice.
 
 The native resolver reuses immutable unit meshes and external shader/texture
-dependencies via Godot's ResourceLoader cache. Material loads use CACHE_MODE_IGNORE
-(not IGNORE_DEEP) so each Part still owns mutable shader parameters while external
-dependencies remain shared. This follows the native text-resource loader's
-cache-mode contract in `scene/resources/resource_format_text.cpp`. Size stays on
-the internal nodes; sharing a unit mesh must not share Part size, tint, alpha or
-normal-map policy. Resource-backed registry entries now reuse unit colliders in
-a bounded 16-slot native cache. Mesh Resource.changed invalidates the slot and
-coalesces deferred refreshes on existing Parts; generation occurs outside the
-cache lock and is published only for a stable mesh revision. Brick/Wedge retain
-their private size-dependent shapes. Derived GeometryMesh/GeometryCollision
-are rebuilt from Shape on duplication/reopen; explicit overrides retain storage
-and detach from registry refresh. Debug-appearance changes on a Shape do not
-invalidate the mesh-derived cache. Cached shapes have Godot's usual shared
-Resource semantics: use an explicit private override for per-Part geometry edits.
+dependencies via Godot's ResourceLoader cache. Material registry `.tres` files
+are loaded with `CACHE_MODE_REUSE` as shared templates; each Part duplicates the
+template before applying alpha and normal-map settings. Thus file parsing is
+cached without sharing mutable material parameters between Parts. That
+per-Part registry copy is also installed directly for rendering instead of
+being duplicated a second time; authored overrides still receive an isolated
+applied copy. This follows
+the native text-resource loader's cache-mode contract in
+`scene/resources/resource_format_text.cpp`. Size stays on the internal nodes;
+sharing a unit mesh must not share Part size, tint, alpha or normal-map policy.
+Resource-backed registry entries now reuse unit colliders in a bounded 16-slot
+native cache. Mesh Resource.changed invalidates the slot and coalesces deferred
+refreshes on existing Parts; generation occurs outside the cache lock and is
+published only for a stable mesh revision. Brick/Wedge retain their private
+size-dependent shapes. Derived GeometryMesh/GeometryCollision are rebuilt from
+Shape on duplication/reopen; explicit overrides retain storage and detach from
+registry refresh. Debug-appearance changes on a Shape do not invalidate the
+mesh-derived cache. Cached shapes have Godot's usual shared Resource semantics:
+use an explicit private override for per-Part geometry edits.
 The cache is released during scene-module teardown, before physics/rendering
 servers disappear. Full-world frame-time profiling remains separate work; this
 does not establish a whole-world performance target.

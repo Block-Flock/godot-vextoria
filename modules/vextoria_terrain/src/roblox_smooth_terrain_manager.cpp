@@ -10,6 +10,7 @@
 #include "core/os/os.h"
 #include "scene/resources/material.h"
 #include "scene/3d/physics/static_body_3d.h"
+#include "scene/3d/physics/vextoria_collision_layers.h"
 #include "core/os/time.h"
 #include "scene/main/viewport.h"
 #include "core/object/class_db.h"
@@ -1808,6 +1809,8 @@ void RobloxSmoothTerrainManager::_install_async_chunk(const RenderKey &key, bool
 				meshes.collision_shape = shape;
 			}
 			StaticBody3D *body = memnew(StaticBody3D);
+			body->set_collision_layer(VextoriaCollisionLayers::ROBLOX_STATIC);
+			body->set_collision_mask(VextoriaCollisionLayers::ROBLOX_DYNAMIC);
 			CollisionShape3D *collision_shape = memnew(CollisionShape3D);
 			collision_shape->set_shape(meshes.collision_shape);
 			body->add_child(collision_shape);
@@ -1849,6 +1852,8 @@ void RobloxSmoothTerrainManager::_install_chunk(
 			}
 			if (meshes.collision_shape.is_valid()) {
 				StaticBody3D *body = memnew(StaticBody3D);
+				body->set_collision_layer(VextoriaCollisionLayers::ROBLOX_STATIC);
+				body->set_collision_mask(VextoriaCollisionLayers::ROBLOX_DYNAMIC);
 				CollisionShape3D *collision_shape = memnew(CollisionShape3D);
 				collision_shape->set_shape(meshes.collision_shape);
 				body->add_child(collision_shape);

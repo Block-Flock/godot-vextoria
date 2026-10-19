@@ -41,6 +41,14 @@ func _run() -> void:
 			break
 	if not _check(terrain.is_streaming_complete() and terrain.get_rendered_chunk_count() > 0, "terrain did not finish streaming"):
 		return
+	var terrain_colliders := terrain.find_children("*", "StaticBody3D", true, false)
+	if not _check(not terrain_colliders.is_empty(), "streamed solid chunks did not install native static collision bodies"):
+		return
+	for terrain_body: StaticBody3D in terrain_colliders:
+		if not _check(terrain_body.get_collision_layer_value(31), "terrain collider is not on Vextoria's Roblox static-geometry channel"):
+			return
+		if not _check(terrain_body.get_collision_mask_value(32), "terrain collider does not accept Roblox dynamic Parts"):
+			return
 	var terrain_material := StandardMaterial3D.new()
 	terrain_material.albedo_color = Color.GREEN
 	for child in terrain.get_children():

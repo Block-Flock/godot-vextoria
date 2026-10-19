@@ -146,6 +146,7 @@ class Part : public RigidBody3D {
 	void apply_external_geometry();
 	bool try_resolve_shape_assets(int p_kind);
 	bool try_resolve_material_asset(int p_kind);
+	bool set_registry_appearance_material(const Ref<Material> &p_template);
 
 protected:
 	static void _bind_methods();

@@ -43,6 +43,7 @@
 #include "core/templates/local_vector.h"
 #include "scene/3d/mesh_instance_3d.h"
 #include "scene/3d/physics/collision_shape_3d.h"
+#include "scene/3d/physics/vextoria_collision_layers.h"
 #include "scene/resources/3d/box_shape_3d.h"
 #include "scene/resources/3d/concave_polygon_shape_3d.h"
 #include "scene/resources/3d/convex_polygon_shape_3d.h"
@@ -745,14 +746,25 @@ bool Part::try_resolve_material_asset(int p_kind) {
 		return false;
 	}
 
-	// Keep mutable material parameters private, but let ResourceLoader reuse
-	// external shader/texture dependencies. IGNORE_DEEP reloaded those heavy
-	// dependencies too, once per Part and again at every alpha transition.
-	Ref<Material> resolved_material = ResourceLoader::load(material_path, "", ResourceLoader::CACHE_MODE_IGNORE);
+	// The registry resource is an immutable template shared by all Parts. The
+	// helper makes the per-Part Material copy before changing alpha or shader
+	// parameters, so ResourceLoader can cache the text resource without leaking
+	// mutable appearance state between instances.
+	Ref<Material> material_template = ResourceLoader::load(material_path, "", ResourceLoader::CACHE_MODE_REUSE);
+	if (material_template.is_null()) {
+		return false;
+	}
+	return set_registry_appearance_material(material_template);
+}
+
+bool Part::set_registry_appearance_material(const Ref<Material> &p_template) {
+	if (p_template.is_null()) {
+		return false;
+	}
+	Ref<Material> resolved_material = p_template->duplicate();
 	if (resolved_material.is_null()) {
 		return false;
 	}
-
 	const bool opaque = color.a >= 0.975f;
 	Ref<ShaderMaterial> shader_material = resolved_material;
 	if (shader_material.is_valid()) {
@@ -770,9 +782,15 @@ bool Part::try_resolve_material_asset(int p_kind) {
 		shader_material->set_shader_parameter(SNAME("use_normal_texture"), normal_maps_enabled);
 	}
 
-	set_appearance_material(resolved_material);
+	if (appearance_material.is_valid()) {
+		appearance_material->disconnect_changed(callable_mp(this, &Part::appearance_material_changed));
+	}
+	appearance_material = resolved_material;
+	appearance_material->connect_changed(callable_mp(this, &Part::appearance_material_changed));
 	material_registry_owned = true;
 	material_registry_opaque = opaque;
+	appearance_material_changed();
+	emit_signal(SNAME("vextoria_property_changed"), SNAME("AppearanceMaterial"));
 	return true;
 }
 
@@ -865,9 +883,15 @@ void Part::appearance_material_changed() {
 		visual->set_material_override(material);
 		return;
 	}
-	// Tint belongs to the Part, never to a shared authored Material asset.
-	applied_appearance = appearance_material->duplicate();
-	ERR_FAIL_COND_MSG(applied_appearance.is_null(), "Part.AppearanceMaterial could not be instanced.");
+	// Registry materials are already private per-Part instances, so use that
+	// resource directly. Authored overrides may be shared by multiple Parts and
+	// must be duplicated before applying this Part's tint.
+	if (material_registry_owned) {
+		applied_appearance = appearance_material;
+	} else {
+		applied_appearance = appearance_material->duplicate();
+		ERR_FAIL_COND_MSG(applied_appearance.is_null(), "Part.AppearanceMaterial could not be instanced.");
+	}
 	if (ShaderMaterial *shader_material = Object::cast_to<ShaderMaterial>(applied_appearance.ptr())) {
 		Ref<Shader> shader = shader_material->get_shader();
 		if (shader.is_valid()) {
@@ -946,22 +970,17 @@ void Part::update_roblox2016_collision_routing() {
 	// Roblox's authored default channel is routed into separate native static
 	// and dynamic channels. Camera clipping is derived from native transparency
 	// using the same threshold as the client compatibility facade.
-	constexpr uint32_t authored_default_layer = 1u;
-	constexpr uint32_t camera_clip_layer = 1u << 5;
-	constexpr uint32_t static_physics_layer = 1u << 30;
-	constexpr uint32_t dynamic_physics_layer = 1u << 31;
-
-	uint32_t effective_layers = collision_layers & ~(authored_default_layer | camera_clip_layer);
-	uint32_t effective_mask = collision_mask & ~authored_default_layer;
+	uint32_t effective_layers = collision_layers & ~(VextoriaCollisionLayers::ROBLOX_AUTHORED_DEFAULT | VextoriaCollisionLayers::ROBLOX_CAMERA_CLIP);
+	uint32_t effective_mask = collision_mask & ~VextoriaCollisionLayers::ROBLOX_AUTHORED_DEFAULT;
 	if (color.a > 0.5f) {
-		effective_layers |= camera_clip_layer;
+		effective_layers |= VextoriaCollisionLayers::ROBLOX_CAMERA_CLIP;
 	}
 	if (anchored) {
-		effective_layers |= static_physics_layer;
-		effective_mask |= dynamic_physics_layer;
+		effective_layers |= VextoriaCollisionLayers::ROBLOX_STATIC;
+		effective_mask |= VextoriaCollisionLayers::ROBLOX_DYNAMIC;
 	} else {
-		effective_layers |= dynamic_physics_layer;
-		effective_mask |= static_physics_layer | dynamic_physics_layer;
+		effective_layers |= VextoriaCollisionLayers::ROBLOX_DYNAMIC;
+		effective_mask |= VextoriaCollisionLayers::ROBLOX_STATIC | VextoriaCollisionLayers::ROBLOX_DYNAMIC;
 	}
 	set_collision_layer(effective_layers);
 	set_collision_mask(effective_mask);
