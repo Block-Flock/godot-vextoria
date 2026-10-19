@@ -191,6 +191,14 @@ service/DataModel lock lifecycle wiring, class-specific validation policy,
 descendant event ordering, temporary-container replication, and Luau callbacks
 remain client compatibility responsibilities.
 
+The hierarchy also implements `is_instance_ancestor_of` natively. It walks the
+Godot parent chain while matching only marked Instance Nodes, so private engine
+helper Nodes do not become Roblox-visible ancestors. This follows
+`ROBLOX-main/App/include/v8tree/Instance.h::Instance::isAncestorOf`, which
+recursively checks the descendant's parent chain. The client delegates both
+`IsAncestorOf` and `IsDescendantOf` to this engine query for native-backed
+Instances and retains its legacy fallback for classes not yet migrated.
+
 Native `VextoriaInstance`, `Model`, and `Part` also expose
 `get_unique_sibling_name`. The fork resolves suffixes against tagged native
 Instance siblings in the supplied Godot parent and a reserved-name list for

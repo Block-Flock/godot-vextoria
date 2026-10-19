@@ -45,6 +45,11 @@ func _initialize() -> void:
 	var first_child := Node.new()
 	first_child.set_meta("_vextoria_instance", true)
 	first.add_child(first_child)
+	var godot_helper_between_instances := Node.new()
+	first.add_child(godot_helper_between_instances)
+	var nested_instance := Node.new()
+	nested_instance.set_meta("_vextoria_instance", true)
+	godot_helper_between_instances.add_child(nested_instance)
 	var detached := Node.new()
 	detached.name = "Detached"
 	detached.set_meta("_vextoria_instance", true)
@@ -59,6 +64,11 @@ func _initialize() -> void:
 	_assert(_find_instance_child_by_name(parent, "Missing") == null, "native direct-name lookup returned a node for a missing name")
 	_assert(_instance_parent_from_api(first) == parent, "native parent API missed the marked SceneTree parent")
 	_assert(_instance_parent_from_api(helper) == null, "native parent API accepted an unmarked node")
+	_assert(_is_instance_ancestor_of(parent, first), "native ancestry query missed a direct Instance parent")
+	_assert(_is_instance_ancestor_of(first, nested_instance), "native ancestry query did not skip a private Godot helper Node")
+	_assert(not _is_instance_ancestor_of(nested_instance, first), "native ancestry query reported a reverse relation")
+	_assert(not _is_instance_ancestor_of(first, first), "native ancestry query treated an Instance as its own ancestor")
+	_assert(not _is_instance_ancestor_of(helper, first), "native ancestry query accepted an unmarked Godot Node")
 	_assert(_can_set_instance_parent(first, parent), "native parent preflight rejected a valid no-op")
 	_assert(_can_set_instance_parent(first, null), "native parent preflight rejected detach")
 	_assert(not _can_set_instance_parent(first, helper), "native parent preflight accepted an unmarked parent")
@@ -152,7 +162,7 @@ func _initialize() -> void:
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: generic native Instance and spatial Instance factories, hidden implementation bases, native Model inheritance, filtered child/parent queries, ParentLocked raw mutation enforcement, transactional attach/detach, cycles and ordering")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: generic native Instance and spatial Instance factories, hidden implementation bases, native Model inheritance, filtered child/parent and ancestry queries, ParentLocked raw mutation enforcement, transactional attach/detach, cycles and ordering")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:
@@ -171,6 +181,9 @@ func _instance_names_from_api(parent: Node) -> Array[String]:
 
 func _instance_parent_from_api(node: Node) -> Node:
 	return ClassDB.class_call_static("VextoriaSceneHierarchy", "get_instance_parent", node)
+
+func _is_instance_ancestor_of(ancestor: Node, descendant: Node) -> bool:
+	return ClassDB.class_call_static("VextoriaSceneHierarchy", "is_instance_ancestor_of", ancestor, descendant)
 
 func _find_instance_child_by_name(parent: Node, child_name: String) -> Node:
 	return ClassDB.class_call_static("VextoriaSceneHierarchy", "find_instance_child_by_name", parent, child_name)

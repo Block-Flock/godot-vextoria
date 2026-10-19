@@ -79,6 +79,21 @@ bool VextoriaSceneHierarchy::is_instance_node(Node *p_node) {
 	return p_node != nullptr && p_node->is_vextoria_instance_native();
 }
 
+bool VextoriaSceneHierarchy::is_instance_ancestor_of(Node *p_ancestor, Node *p_descendant) {
+	if (!is_instance_node(p_ancestor) || !is_instance_node(p_descendant) || p_ancestor == p_descendant) {
+		return false;
+	}
+	// Walk the Godot tree but only recognize marked Vextoria Instances. Some
+	// legacy proxies still have private engine Nodes between logical parents;
+	// those Nodes must not alter Roblox Instance ancestry.
+	for (Node *parent = p_descendant->get_parent(); parent != nullptr; parent = parent->get_parent()) {
+		if (is_instance_node(parent) && parent == p_ancestor) {
+			return true;
+		}
+	}
+	return false;
+}
+
 Node *VextoriaSceneHierarchy::find_instance_child_by_name(Node *p_parent, const String &p_name) {
 	if (p_parent == nullptr) {
 		return nullptr;
@@ -282,6 +297,7 @@ void VextoriaSceneHierarchy::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("create_generic_instance"), &VextoriaSceneHierarchy::create_generic_instance);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("create_generic_spatial_instance"), &VextoriaSceneHierarchy::create_generic_spatial_instance);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("is_instance_node", "node"), &VextoriaSceneHierarchy::is_instance_node);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("is_instance_ancestor_of", "ancestor", "descendant"), &VextoriaSceneHierarchy::is_instance_ancestor_of);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("find_instance_child_by_name", "parent", "name"), &VextoriaSceneHierarchy::find_instance_child_by_name);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_children", "parent"), &VextoriaSceneHierarchy::get_instance_children);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_descendants", "parent"), &VextoriaSceneHierarchy::get_instance_descendants);
