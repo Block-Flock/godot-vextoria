@@ -60,6 +60,31 @@ func _initialize() -> void:
 	detached.name = "Detached"
 	detached.set_meta("_vextoria_instance", true)
 
+	# Roblox-main/App/v8datamodel/Attachment.cpp: Parts and Workspace are the
+	# only valid Attachment parents, and an Attachment cannot own children.
+	var attachment: Node3D = ClassDB.class_call_static(
+		"VextoriaSceneHierarchy", "create_generic_spatial_instance")
+	attachment.set_meta("_vextoria_instance", true)
+	attachment.set_meta("_vextoria_class_name", "Attachment")
+	var attachment_part: Node = ClassDB.instantiate("Part")
+	attachment_part.set_meta("_vextoria_class_name", "Part")
+	var attachment_workspace := Node.new()
+	attachment_workspace.set_meta("_vextoria_instance", true)
+	attachment_workspace.set_meta("_vextoria_class_name", "World")
+	var attachment_folder := Node.new()
+	attachment_folder.set_meta("_vextoria_instance", true)
+	attachment_folder.set_meta("_vextoria_class_name", "Folder")
+	_assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", attachment, attachment_part),
+		"Attachment parented to a Part was rejected")
+	_assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", attachment, attachment_workspace),
+		"Attachment parented to Workspace was rejected")
+	_assert(not ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", attachment, attachment_folder),
+		"Attachment accepted an invalid Folder parent")
+	_assert(not ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", attachment_folder, attachment),
+		"Attachment accepted a child")
+	_assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "can_set_instance_parent", attachment, null),
+		"Attachment could not be detached")
+
 	_assert_index(first, 0)
 	_assert_index(second, 1)
 	_assert_index(third, 2)
@@ -206,7 +231,7 @@ func _initialize() -> void:
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: generic native Instance and spatial Instance factories, hidden implementation bases, native Model inheritance, filtered child/parent/ancestry and descendant-event dispatch planning, ParentLocked raw mutation enforcement, transactional attach/detach, cycles and ordering")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: generic native Instance and spatial Instance factories, hidden implementation bases, native Model inheritance, filtered child/parent/ancestry and descendant-event dispatch planning, ParentLocked raw mutation enforcement, transactional attach/detach, cycles, ordering, Attachment parent/child policy")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:

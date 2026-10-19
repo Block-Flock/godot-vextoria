@@ -19,6 +19,14 @@ struct ParentChangeState {
 
 HashMap<ObjectID, ParentChangeState> active_parent_changes;
 
+String get_vextoria_class_name(const Node *p_node) {
+	if (p_node == nullptr) {
+		return String();
+	}
+	const StringName metadata_key = SNAME("_vextoria_class_name");
+	return p_node->has_meta(metadata_key) ? String(p_node->get_meta(metadata_key, String())) : p_node->get_class();
+}
+
 void collect_instance_children(Node *p_parent, std::vector<Node *> &r_instances) {
 	if (p_parent == nullptr) {
 		return;
@@ -188,6 +196,18 @@ bool VextoriaSceneHierarchy::can_set_instance_parent(Node *p_node, Node *p_paren
 		return false;
 	}
 	if (p_parent != nullptr && !is_instance_node(p_parent)) {
+		return false;
+	}
+	// Source: ROBLOX-main/App/v8datamodel/Attachment.cpp. Attachment may be
+	// parented only to Part/Workspace and cannot own children. Enforce this in
+	// the common native hierarchy gate so all parent-change entry points agree.
+	const String moving_class = get_vextoria_class_name(p_node);
+	const String parent_class = get_vextoria_class_name(p_parent);
+	if (parent_class == "Attachment") {
+		return false;
+	}
+	if (moving_class == "Attachment" && p_parent != nullptr &&
+		parent_class != "Part" && parent_class != "Workspace" && parent_class != "World") {
 		return false;
 	}
 	if (get_instance_parent(p_node) == p_parent && (p_parent != nullptr || p_node->get_parent() == nullptr)) {
