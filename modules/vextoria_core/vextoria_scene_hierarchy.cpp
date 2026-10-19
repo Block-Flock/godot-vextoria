@@ -94,6 +94,47 @@ bool VextoriaSceneHierarchy::is_instance_ancestor_of(Node *p_ancestor, Node *p_d
 	return false;
 }
 
+Array VextoriaSceneHierarchy::collect_descendant_event_dispatch_plan(Node *p_moving_root, Node *p_first_ancestor, Node *p_shared_ancestor_branch) {
+	Array plan;
+	if (!is_instance_node(p_moving_root) || !is_instance_node(p_first_ancestor) ||
+		(p_shared_ancestor_branch != nullptr && !is_instance_node(p_shared_ancestor_branch))) {
+		return plan;
+	}
+
+	// Match Instance::signalDescendantAdded/Removing: visit the moving Instance
+	// first, then its descendants in hierarchy order. Materialize every event
+	// recipient before callbacks run, because a Luau callback may reparent or
+	// destroy another branch while the transaction is being observed.
+	std::vector<Node *> affected_nodes;
+	affected_nodes.reserve(1 + p_moving_root->get_child_count());
+	affected_nodes.push_back(p_moving_root);
+	std::vector<Node *> descendants = collect_instance_descendants(p_moving_root);
+	affected_nodes.insert(affected_nodes.end(), descendants.begin(), descendants.end());
+
+	for (Node *affected : affected_nodes) {
+		for (Node *ancestor = p_first_ancestor; ancestor != nullptr;) {
+			if (p_shared_ancestor_branch != nullptr &&
+				(ancestor == p_shared_ancestor_branch || is_instance_ancestor_of(ancestor, p_shared_ancestor_branch))) {
+				break;
+			}
+
+			Array event_pair;
+			event_pair.push_back(ancestor);
+			event_pair.push_back(affected);
+			plan.push_back(event_pair);
+
+			// Godot helper Nodes are implementation details, not Instance
+			// ancestors. Continue to the next marked Node in the native tree.
+			Node *parent = ancestor->get_parent();
+			while (parent != nullptr && !is_instance_node(parent)) {
+				parent = parent->get_parent();
+			}
+			ancestor = parent;
+		}
+	}
+	return plan;
+}
+
 Node *VextoriaSceneHierarchy::find_instance_child_by_name(Node *p_parent, const String &p_name) {
 	if (p_parent == nullptr) {
 		return nullptr;
@@ -298,6 +339,7 @@ void VextoriaSceneHierarchy::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("create_generic_spatial_instance"), &VextoriaSceneHierarchy::create_generic_spatial_instance);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("is_instance_node", "node"), &VextoriaSceneHierarchy::is_instance_node);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("is_instance_ancestor_of", "ancestor", "descendant"), &VextoriaSceneHierarchy::is_instance_ancestor_of);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("collect_descendant_event_dispatch_plan", "moving_root", "first_ancestor", "shared_ancestor_branch"), &VextoriaSceneHierarchy::collect_descendant_event_dispatch_plan);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("find_instance_child_by_name", "parent", "name"), &VextoriaSceneHierarchy::find_instance_child_by_name);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_children", "parent"), &VextoriaSceneHierarchy::get_instance_children);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_descendants", "parent"), &VextoriaSceneHierarchy::get_instance_descendants);

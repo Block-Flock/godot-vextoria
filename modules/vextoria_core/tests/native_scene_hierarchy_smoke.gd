@@ -69,6 +69,31 @@ func _initialize() -> void:
 	_assert(not _is_instance_ancestor_of(nested_instance, first), "native ancestry query reported a reverse relation")
 	_assert(not _is_instance_ancestor_of(first, first), "native ancestry query treated an Instance as its own ancestor")
 	_assert(not _is_instance_ancestor_of(helper, first), "native ancestry query accepted an unmarked Godot Node")
+	var shared_root := ClassDB.class_call_static("VextoriaSceneHierarchy", "create_generic_instance") as Node
+	var source_parent := ClassDB.class_call_static("VextoriaSceneHierarchy", "create_generic_instance") as Node
+	var destination_parent := ClassDB.class_call_static("VextoriaSceneHierarchy", "create_generic_instance") as Node
+	var moving_root := ClassDB.class_call_static("VextoriaSceneHierarchy", "create_generic_instance") as Node
+	var moving_child := ClassDB.class_call_static("VextoriaSceneHierarchy", "create_generic_instance") as Node
+	var moving_grandchild := ClassDB.class_call_static("VextoriaSceneHierarchy", "create_generic_instance") as Node
+	var event_helper := Node.new()
+	shared_root.add_child(event_helper)
+	event_helper.add_child(source_parent)
+	event_helper.add_child(destination_parent)
+	source_parent.add_child(moving_root)
+	moving_root.add_child(moving_child)
+	moving_child.add_child(moving_grandchild)
+	var removing_plan: Array = ClassDB.class_call_static("VextoriaSceneHierarchy", "collect_descendant_event_dispatch_plan", moving_root, source_parent, destination_parent)
+	_assert(removing_plan.size() == 3, "native DescendantRemoving plan included a common ancestor or omitted a subtree member")
+	_assert(_event_pair_is(removing_plan, 0, source_parent, moving_root), "native DescendantRemoving plan did not start with the moving Instance")
+	_assert(_event_pair_is(removing_plan, 1, source_parent, moving_child), "native DescendantRemoving plan changed descendant order")
+	_assert(_event_pair_is(removing_plan, 2, source_parent, moving_grandchild), "native DescendantRemoving plan omitted a nested descendant")
+	var adding_plan: Array = ClassDB.class_call_static("VextoriaSceneHierarchy", "collect_descendant_event_dispatch_plan", moving_root, destination_parent, source_parent)
+	_assert(adding_plan.size() == 3, "native DescendantAdded plan included a common ancestor or omitted a subtree member")
+	_assert(_event_pair_is(adding_plan, 0, destination_parent, moving_root), "native DescendantAdded plan used the wrong first ancestor")
+	_assert(_event_pair_is(adding_plan, 2, destination_parent, moving_grandchild), "native DescendantAdded plan changed descendant order")
+	var unshared_plan: Array = ClassDB.class_call_static("VextoriaSceneHierarchy", "collect_descendant_event_dispatch_plan", moving_root, source_parent, null)
+	_assert(unshared_plan.size() == 6, "native descendant event plan did not include every non-shared Instance ancestor or skip helper Nodes")
+	shared_root.free()
 	_assert(_can_set_instance_parent(first, parent), "native parent preflight rejected a valid no-op")
 	_assert(_can_set_instance_parent(first, null), "native parent preflight rejected detach")
 	_assert(not _can_set_instance_parent(first, helper), "native parent preflight accepted an unmarked parent")
@@ -162,7 +187,7 @@ func _initialize() -> void:
 	if failed:
 		quit(1)
 	else:
-		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: generic native Instance and spatial Instance factories, hidden implementation bases, native Model inheritance, filtered child/parent and ancestry queries, ParentLocked raw mutation enforcement, transactional attach/detach, cycles and ordering")
+		print("VEXTORIA_NATIVE_SCENE_HIERARCHY_PASS: generic native Instance and spatial Instance factories, hidden implementation bases, native Model inheritance, filtered child/parent/ancestry and descendant-event dispatch planning, ParentLocked raw mutation enforcement, transactional attach/detach, cycles and ordering")
 		quit(0)
 
 func _instance_names(parent: Node) -> Array[String]:
@@ -184,6 +209,12 @@ func _instance_parent_from_api(node: Node) -> Node:
 
 func _is_instance_ancestor_of(ancestor: Node, descendant: Node) -> bool:
 	return ClassDB.class_call_static("VextoriaSceneHierarchy", "is_instance_ancestor_of", ancestor, descendant)
+
+func _event_pair_is(plan: Array, index: int, expected_ancestor: Node, expected_descendant: Node) -> bool:
+	if index < 0 or index >= plan.size():
+		return false
+	var event_pair: Array = plan[index]
+	return event_pair.size() == 2 and event_pair[0] == expected_ancestor and event_pair[1] == expected_descendant
 
 func _find_instance_child_by_name(parent: Node, child_name: String) -> Node:
 	return ClassDB.class_call_static("VextoriaSceneHierarchy", "find_instance_child_by_name", parent, child_name)
