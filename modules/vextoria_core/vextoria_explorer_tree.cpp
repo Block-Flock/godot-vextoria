@@ -67,10 +67,12 @@ void VextoriaExplorerTree::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("sync_item_name", "item"), &VextoriaExplorerTree::sync_item_name);
 	ClassDB::bind_method(D_METHOD("is_node_excluded", "node"), &VextoriaExplorerTree::is_node_excluded);
 	ClassDB::bind_method(D_METHOD("apply_search_filter", "query"), &VextoriaExplorerTree::apply_search_filter);
+	ClassDB::bind_method(D_METHOD("queue_search_filter", "query"), &VextoriaExplorerTree::queue_search_filter);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "source_root", PROPERTY_HINT_NODE_TYPE, "Node", PROPERTY_USAGE_NONE), "set_source_root", "get_source_root");
 	ADD_SIGNAL(MethodInfo("item_added", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::OBJECT, "item")));
 	ADD_SIGNAL(MethodInfo("item_removing", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::OBJECT, "item")));
 	ADD_SIGNAL(MethodInfo("instance_selected", PropertyInfo(Variant::OBJECT, "node"), PropertyInfo(Variant::BOOL, "selected")));
+	ADD_SIGNAL(MethodInfo("search_filter_applied", PropertyInfo(Variant::STRING, "query"), PropertyInfo(Variant::OBJECT, "first_match")));
 }
 
 void VextoriaExplorerTree::_notification(int p_what) {
@@ -100,7 +102,11 @@ void VextoriaExplorerTree::_notification(int p_what) {
 			}
 			if (search_filter_dirty) {
 				search_filter_dirty = false;
-				_apply_search_filter(get_root(), search_query);
+				Node *first_match = _apply_search_filter(get_root(), search_query);
+				if (search_request_pending) {
+					search_request_pending = false;
+					emit_signal(SNAME("search_filter_applied"), search_query, first_match);
+				}
 			}
 			if (pending_scroll_node.is_valid()) {
 				Node *node = Object::cast_to<Node>(ObjectDB::get_instance(pending_scroll_node));
@@ -338,6 +344,13 @@ Node *VextoriaExplorerTree::apply_search_filter(const String &p_query) {
 	return first_match;
 }
 
+void VextoriaExplorerTree::queue_search_filter(const String &p_query) {
+	search_query = p_query.to_lower();
+	search_filter_dirty = true;
+	search_request_pending = true;
+	set_process(true);
+}
+
 void VextoriaExplorerTree::_add_subtree(Node *p_node, bool p_recurse) {
 	if (!source_root || p_node->is_internal() || (p_node != source_root && !source_root->is_ancestor_of(p_node))) {
 		return;
@@ -399,6 +412,7 @@ void VextoriaExplorerTree::_clear_items() {
 	node_presentations.clear();
 	order_dirty = false;
 	search_filter_dirty = false;
+	search_request_pending = false;
 	pending_scroll_node = ObjectID();
 	set_process(false);
 }

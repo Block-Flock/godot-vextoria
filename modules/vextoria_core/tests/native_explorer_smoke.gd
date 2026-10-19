@@ -129,6 +129,16 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	assert(part_item.is_visible() and folder_item.is_visible() and model_item.is_visible(), "renaming a row into a match did not reveal its ancestors")
+	var queued_search_results: Array = []
+	explorer.connect("search_filter_applied", func(query: String, first_match: Node):
+		queued_search_results.append([query, first_match])
+	)
+	explorer.call("queue_search_filter", "blue")
+	explorer.call("queue_search_filter", "red")
+	await process_frame
+	assert(queued_search_results.size() == 1, "queued search changes were not coalesced into one native frame update")
+	assert(queued_search_results[0][0] == "red" and queued_search_results[0][1] == part,
+		"native queued search did not report the latest query and preorder match")
 	var red_sibling: Node3D = ClassDB.instantiate("Model")
 	red_sibling.name = "Red Window"
 	red_sibling.set_meta("_vextoria_instance", true)

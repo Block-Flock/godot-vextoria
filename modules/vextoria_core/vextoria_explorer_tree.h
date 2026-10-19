@@ -58,6 +58,7 @@ class VextoriaExplorerTree : public Tree {
 	ObjectID pending_scroll_node;
 	bool order_dirty = false;
 	bool search_filter_dirty = false;
+	bool search_request_pending = false;
 
 	void _add_subtree(Node *p_node, bool p_recurse = true);
 	void _remove_item(TreeItem *p_item);
@@ -90,4 +91,5 @@ public:
 	void sync_item_name(TreeItem *p_item);
 	bool is_node_excluded(Node *p_node) const;
 	Node *apply_search_filter(const String &p_query);
+	void queue_search_filter(const String &p_query);
 };
