@@ -17,6 +17,7 @@ namespace {
 struct OwnerSelection {
 	uint64_t root_object_id = 0;
 	std::vector<uint64_t> node_object_ids;
+	Callable change_callback;
 };
 
 std::unordered_map<int64_t, OwnerSelection> selections;
@@ -81,6 +82,12 @@ bool connect_node_parent_change(Node *p_node) {
 	return true;
 }
 
+void notify_selection_change(const Callable &p_callback, int64_t p_owner_object_id, Node *p_node, bool p_selected) {
+	if (p_callback.is_valid() && p_node != nullptr) {
+		p_callback.call(p_owner_object_id, p_node, p_selected);
+	}
+}
+
 void prune_invalid_nodes(OwnerSelection &r_selection, Node *p_root) {
 	auto &ids = r_selection.node_object_ids;
 	std::vector<uint64_t> removed_ids;
@@ -123,8 +130,8 @@ void VextoriaCreatorSelectionState::shutdown() {
 	}
 }
 
-bool VextoriaCreatorSelectionState::select_node(int64_t p_owner_object_id, Node *p_selection_root, Node *p_node) {
-	if (p_owner_object_id == 0 || !is_within_selection_root(p_selection_root, p_node)) {
+bool VextoriaCreatorSelectionState::bind_owner(int64_t p_owner_object_id, Node *p_selection_root, const Callable &p_change_callback) {
+	if (p_owner_object_id == 0 || p_selection_root == nullptr) {
 		return false;
 	}
 	MutexLock lock(selections_mutex);
@@ -132,37 +139,60 @@ bool VextoriaCreatorSelectionState::select_node(int64_t p_owner_object_id, Node 
 	if (owner_selection == nullptr) {
 		return false;
 	}
-	std::vector<uint64_t> &selection = owner_selection->node_object_ids;
-	prune_invalid_nodes(*owner_selection, p_selection_root);
-	const uint64_t node_id = uint64_t(p_node->get_instance_id());
-	if (std::find(selection.begin(), selection.end(), node_id) != selection.end()) {
+	owner_selection->change_callback = p_change_callback;
+	return true;
+}
+
+bool VextoriaCreatorSelectionState::select_node(int64_t p_owner_object_id, Node *p_selection_root, Node *p_node) {
+	if (p_owner_object_id == 0 || !is_within_selection_root(p_selection_root, p_node)) {
 		return false;
 	}
-	if (!connect_node_parent_change(p_node)) {
-		return false;
+	Callable change_callback;
+	{
+		MutexLock lock(selections_mutex);
+		OwnerSelection *owner_selection = get_selection(p_owner_object_id, p_selection_root, true);
+		if (owner_selection == nullptr) {
+			return false;
+		}
+		std::vector<uint64_t> &selection = owner_selection->node_object_ids;
+		prune_invalid_nodes(*owner_selection, p_selection_root);
+		const uint64_t node_id = uint64_t(p_node->get_instance_id());
+		if (std::find(selection.begin(), selection.end(), node_id) != selection.end()) {
+			return false;
+		}
+		if (!connect_node_parent_change(p_node)) {
+			return false;
+		}
+		selection.push_back(node_id);
+		change_callback = owner_selection->change_callback;
 	}
-	selection.push_back(node_id);
+	notify_selection_change(change_callback, p_owner_object_id, p_node, true);
 	return true;
 }
 
 bool VextoriaCreatorSelectionState::deselect_node(int64_t p_owner_object_id, Node *p_node) {
 	ERR_FAIL_COND_V(p_owner_object_id == 0 || p_node == nullptr, false);
-	MutexLock lock(selections_mutex);
-	auto found = selections.find(p_owner_object_id);
-	if (found == selections.end()) {
-		return false;
+	Callable change_callback;
+	{
+		MutexLock lock(selections_mutex);
+		auto found = selections.find(p_owner_object_id);
+		if (found == selections.end()) {
+			return false;
+		}
+		const uint64_t node_id = uint64_t(p_node->get_instance_id());
+		auto &selection = found->second.node_object_ids;
+		auto node = std::find(selection.begin(), selection.end(), node_id);
+		if (node == selection.end()) {
+			return false;
+		}
+		selection.erase(node);
+		change_callback = found->second.change_callback;
+		if (selection.empty() && !change_callback.is_valid()) {
+			selections.erase(found);
+		}
+		disconnect_node_parent_change(node_id);
 	}
-	const uint64_t node_id = uint64_t(p_node->get_instance_id());
-	auto &selection = found->second.node_object_ids;
-	auto node = std::find(selection.begin(), selection.end(), node_id);
-	if (node == selection.end()) {
-		return false;
-	}
-	selection.erase(node);
-	if (selection.empty()) {
-		selections.erase(found);
-	}
-	disconnect_node_parent_change(node_id);
+	notify_selection_change(change_callback, p_owner_object_id, p_node, false);
 	return true;
 }
 
@@ -197,7 +227,7 @@ Array VextoriaCreatorSelectionState::get_selected_nodes(int64_t p_owner_object_i
 			result.push_back(node);
 		}
 	}
-	if (owner_selection->node_object_ids.empty()) {
+	if (owner_selection->node_object_ids.empty() && !owner_selection->change_callback.is_valid()) {
 		selections.erase(p_owner_object_id);
 	}
 	return result;
@@ -207,20 +237,45 @@ void VextoriaCreatorSelectionState::clear_selection(int64_t p_owner_object_id) {
 	if (p_owner_object_id == 0) {
 		return;
 	}
+	std::vector<uint64_t> ids;
+	Callable change_callback;
+	{
+		MutexLock lock(selections_mutex);
+		auto found = selections.find(p_owner_object_id);
+		if (found == selections.end()) {
+			return;
+		}
+		ids = found->second.node_object_ids;
+		change_callback = found->second.change_callback;
+		if (change_callback.is_valid()) {
+			found->second.node_object_ids.clear();
+		} else {
+			selections.erase(found);
+		}
+		for (uint64_t id : ids) {
+			disconnect_node_parent_change(id);
+		}
+	}
+	for (uint64_t id : ids) {
+		Node *node = Object::cast_to<Node>(ObjectDB::get_instance(ObjectID(id)));
+		notify_selection_change(change_callback, p_owner_object_id, node, false);
+	}
+}
+
+void VextoriaCreatorSelectionState::forget_owner(int64_t p_owner_object_id) {
+	if (p_owner_object_id == 0) {
+		return;
+	}
 	MutexLock lock(selections_mutex);
 	auto found = selections.find(p_owner_object_id);
 	if (found == selections.end()) {
 		return;
 	}
-	std::vector<uint64_t> ids = found->second.node_object_ids;
+	const std::vector<uint64_t> ids = found->second.node_object_ids;
 	selections.erase(found);
 	for (uint64_t id : ids) {
 		disconnect_node_parent_change(id);
 	}
-}
-
-void VextoriaCreatorSelectionState::forget_owner(int64_t p_owner_object_id) {
-	clear_selection(p_owner_object_id);
 }
 
 void VextoriaCreatorSelectionState::_on_selected_node_parent_changing(Node *p_old_parent, Node *p_new_parent, int64_t p_node_object_id) {
@@ -249,6 +304,7 @@ void VextoriaCreatorSelectionState::_on_selected_node_parent_changing(Node *p_ol
 
 void VextoriaCreatorSelectionState::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_selected_node_parent_changing", "old_parent", "new_parent", "node_object_id"), &VextoriaCreatorSelectionState::_on_selected_node_parent_changing);
+	ClassDB::bind_static_method("VextoriaCreatorSelectionState", D_METHOD("bind_owner", "owner_object_id", "selection_root", "change_callback"), &VextoriaCreatorSelectionState::bind_owner);
 	ClassDB::bind_static_method("VextoriaCreatorSelectionState", D_METHOD("select_node", "owner_object_id", "selection_root", "node"), &VextoriaCreatorSelectionState::select_node);
 	ClassDB::bind_static_method("VextoriaCreatorSelectionState", D_METHOD("deselect_node", "owner_object_id", "node"), &VextoriaCreatorSelectionState::deselect_node);
 	ClassDB::bind_static_method("VextoriaCreatorSelectionState", D_METHOD("has_node", "owner_object_id", "selection_root", "node"), &VextoriaCreatorSelectionState::has_node);

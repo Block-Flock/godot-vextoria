@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/object/object.h"
+#include "core/variant/callable.h"
 #include "core/variant/array.h"
 
 class Node;
@@ -20,6 +21,7 @@ protected:
 public:
 	static void initialize();
 	static void shutdown();
+	static bool bind_owner(int64_t p_owner_object_id, Node *p_selection_root, const Callable &p_change_callback);
 	static bool select_node(int64_t p_owner_object_id, Node *p_selection_root, Node *p_node);
 	static bool deselect_node(int64_t p_owner_object_id, Node *p_node);
 	static bool has_node(int64_t p_owner_object_id, Node *p_selection_root, Node *p_node);
