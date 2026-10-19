@@ -4134,6 +4134,10 @@ void Node::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("child_order_changed"));
 	ADD_SIGNAL(MethodInfo("vextoria_parent_changed"));
 	ADD_SIGNAL(MethodInfo("vextoria_instance_predelete"));
+	ADD_SIGNAL(MethodInfo("vextoria_descendant_added",
+		PropertyInfo(Variant::OBJECT, "instance", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));
+	ADD_SIGNAL(MethodInfo("vextoria_descendant_removing",
+		PropertyInfo(Variant::OBJECT, "instance", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));
 	ADD_SIGNAL(MethodInfo("vextoria_parent_changing",
 		PropertyInfo(Variant::OBJECT, "old_parent", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node"),
 		PropertyInfo(Variant::OBJECT, "new_parent", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));

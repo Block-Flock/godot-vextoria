@@ -26,6 +26,7 @@ public:
 	static bool is_instance_node(Node *p_node);
 	static bool is_instance_ancestor_of(Node *p_ancestor, Node *p_descendant);
 	static Array collect_descendant_event_dispatch_plan(Node *p_moving_root, Node *p_first_ancestor, Node *p_shared_ancestor_branch);
+	static bool dispatch_descendant_event(Node *p_moving_root, Node *p_first_ancestor, Node *p_shared_ancestor_branch, bool p_removing);
 	static Node *find_instance_child_by_name(Node *p_parent, const String &p_name);
 	static Array get_instance_children(Node *p_parent);
 	static Array get_instance_descendants(Node *p_parent);

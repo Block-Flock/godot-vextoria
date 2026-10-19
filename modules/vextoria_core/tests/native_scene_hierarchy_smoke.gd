@@ -137,6 +137,18 @@ func _initialize() -> void:
 	_assert(_event_pair_is(adding_plan, 2, destination_parent, moving_grandchild), "native DescendantAdded plan changed descendant order")
 	var unshared_plan: Array = ClassDB.class_call_static("VextoriaSceneHierarchy", "collect_descendant_event_dispatch_plan", moving_root, source_parent, null)
 	_assert(unshared_plan.size() == 6, "native descendant event plan did not include every non-shared Instance ancestor or skip helper Nodes")
+	var removing_events: Array[Node] = []
+	var adding_events: Array[Node] = []
+	source_parent.connect("vextoria_descendant_removing", func(instance: Node): removing_events.append(instance))
+	destination_parent.connect("vextoria_descendant_added", func(instance: Node): adding_events.append(instance))
+	_assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "dispatch_descendant_event", moving_root, source_parent, destination_parent, true),
+		"native DescendantRemoving dispatcher rejected a valid native hierarchy")
+	_assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "dispatch_descendant_event", moving_root, destination_parent, source_parent, false),
+		"native DescendantAdded dispatcher rejected a valid native hierarchy")
+	_assert(removing_events == [moving_root, moving_child, moving_grandchild],
+		"native DescendantRemoving signal dispatch changed depth-first order")
+	_assert(adding_events == [moving_root, moving_child, moving_grandchild],
+		"native DescendantAdded signal dispatch changed depth-first order")
 	shared_root.free()
 	_assert(_can_set_instance_parent(first, parent), "native parent preflight rejected a valid no-op")
 	_assert(_can_set_instance_parent(first, null), "native parent preflight rejected detach")

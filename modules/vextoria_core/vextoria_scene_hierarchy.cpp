@@ -147,6 +147,35 @@ Array VextoriaSceneHierarchy::collect_descendant_event_dispatch_plan(Node *p_mov
 	return plan;
 }
 
+bool VextoriaSceneHierarchy::dispatch_descendant_event(Node *p_moving_root, Node *p_first_ancestor, Node *p_shared_ancestor_branch, bool p_removing) {
+	if (!is_instance_node(p_moving_root) || !is_instance_node(p_first_ancestor) ||
+		(p_shared_ancestor_branch != nullptr && !is_instance_node(p_shared_ancestor_branch))) {
+		return false;
+	}
+
+	// Snapshot the complete dispatch before invoking any receiver. A callback may
+	// reparent or free another Instance; each Object Variant is validated again
+	// immediately before emission so the snapshot never dereferences a stale Node.
+	const Array plan = collect_descendant_event_dispatch_plan(p_moving_root, p_first_ancestor, p_shared_ancestor_branch);
+	const StringName signal = p_removing ? SNAME("vextoria_descendant_removing") : SNAME("vextoria_descendant_added");
+	for (int64_t i = 0; i < plan.size(); i++) {
+		const Array event_pair = plan[i];
+		if (event_pair.size() < 2) {
+			continue;
+		}
+		bool ancestor_was_freed = false;
+		bool affected_was_freed = false;
+		Node *ancestor = Object::cast_to<Node>(event_pair[0].get_validated_object_with_check(ancestor_was_freed));
+		Node *affected = Object::cast_to<Node>(event_pair[1].get_validated_object_with_check(affected_was_freed));
+		if (ancestor == nullptr || affected == nullptr || ancestor_was_freed || affected_was_freed ||
+			!is_instance_node(ancestor) || !is_instance_node(affected)) {
+			continue;
+		}
+		ancestor->emit_signal(signal, affected);
+	}
+	return true;
+}
+
 Node *VextoriaSceneHierarchy::find_instance_child_by_name(Node *p_parent, const String &p_name) {
 	for (Node *child : collect_instance_children(p_parent)) {
 		if (child->get_name() == p_name) {
@@ -382,6 +411,7 @@ void VextoriaSceneHierarchy::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("is_instance_node", "node"), &VextoriaSceneHierarchy::is_instance_node);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("is_instance_ancestor_of", "ancestor", "descendant"), &VextoriaSceneHierarchy::is_instance_ancestor_of);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("collect_descendant_event_dispatch_plan", "moving_root", "first_ancestor", "shared_ancestor_branch"), &VextoriaSceneHierarchy::collect_descendant_event_dispatch_plan);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("dispatch_descendant_event", "moving_root", "first_ancestor", "shared_ancestor_branch", "removing"), &VextoriaSceneHierarchy::dispatch_descendant_event);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("find_instance_child_by_name", "parent", "name"), &VextoriaSceneHierarchy::find_instance_child_by_name);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_children", "parent"), &VextoriaSceneHierarchy::get_instance_children);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("get_instance_descendants", "parent"), &VextoriaSceneHierarchy::get_instance_descendants);
