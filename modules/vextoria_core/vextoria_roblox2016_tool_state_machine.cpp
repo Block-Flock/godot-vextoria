@@ -18,10 +18,12 @@ constexpr int TOOL_STATE_MAX = 5;
 struct ToolStateRecord {
 	int32_t state = 0;
 	int64_t transition_generation = 0;
+	int64_t world_pickup_claim = 0;
 };
 
 std::unordered_map<int64_t, ToolStateRecord> tool_states;
 Mutex tool_states_mutex;
+int64_t next_world_pickup_claim = 0;
 
 ToolStateRecord *get_record(int64_t p_tool_object_id) {
 	if (p_tool_object_id == 0) {
@@ -74,6 +76,11 @@ int VextoriaRoblox2016ToolStateMachine::advance_toward(int64_t p_tool_object_id,
 		return -1;
 	}
 	record->state += p_target > record->state ? 1 : -1;
+	// Roblox disconnects Handle.Touched as soon as a Tool leaves the
+	// IN_WORKSPACE rung. Drop the in-flight claim at that same state boundary.
+	if (record->state != 2) {
+		record->world_pickup_claim = 0;
+	}
 	return record->state;
 }
 
@@ -89,6 +96,37 @@ int64_t VextoriaRoblox2016ToolStateMachine::get_transition_generation(int64_t p_
 	return found == tool_states.end() ? 0 : found->second.transition_generation;
 }
 
+int64_t VextoriaRoblox2016ToolStateMachine::try_claim_world_pickup(int64_t p_tool_object_id) {
+	ERR_FAIL_COND_V(p_tool_object_id == 0, 0);
+	MutexLock lock(tool_states_mutex);
+	ToolStateRecord *record = get_record(p_tool_object_id);
+	ERR_FAIL_NULL_V(record, 0);
+	if (record->state != IN_WORKSPACE || record->world_pickup_claim != 0) {
+		return 0;
+	}
+	if (next_world_pickup_claim >= 0x7fffffffffffffffLL) {
+		next_world_pickup_claim = 1;
+	} else {
+		++next_world_pickup_claim;
+		if (next_world_pickup_claim == 0) {
+			next_world_pickup_claim = 1;
+		}
+	}
+	record->world_pickup_claim = next_world_pickup_claim;
+	return record->world_pickup_claim;
+}
+
+void VextoriaRoblox2016ToolStateMachine::release_world_pickup(int64_t p_tool_object_id, int64_t p_claim_token) {
+	if (p_tool_object_id == 0 || p_claim_token == 0) {
+		return;
+	}
+	MutexLock lock(tool_states_mutex);
+	const auto found = tool_states.find(p_tool_object_id);
+	if (found != tool_states.end() && found->second.world_pickup_claim == p_claim_token) {
+		found->second.world_pickup_claim = 0;
+	}
+}
+
 void VextoriaRoblox2016ToolStateMachine::forget_tool(int64_t p_tool_object_id) {
 	MutexLock lock(tool_states_mutex);
 	tool_states.erase(p_tool_object_id);
@@ -100,5 +138,7 @@ void VextoriaRoblox2016ToolStateMachine::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaRoblox2016ToolStateMachine", D_METHOD("advance_toward", "tool_object_id", "target", "expected_generation"), &VextoriaRoblox2016ToolStateMachine::advance_toward);
 	ClassDB::bind_static_method("VextoriaRoblox2016ToolStateMachine", D_METHOD("get_state", "tool_object_id"), &VextoriaRoblox2016ToolStateMachine::get_state);
 	ClassDB::bind_static_method("VextoriaRoblox2016ToolStateMachine", D_METHOD("get_transition_generation", "tool_object_id"), &VextoriaRoblox2016ToolStateMachine::get_transition_generation);
+	ClassDB::bind_static_method("VextoriaRoblox2016ToolStateMachine", D_METHOD("try_claim_world_pickup", "tool_object_id"), &VextoriaRoblox2016ToolStateMachine::try_claim_world_pickup);
+	ClassDB::bind_static_method("VextoriaRoblox2016ToolStateMachine", D_METHOD("release_world_pickup", "tool_object_id", "claim_token"), &VextoriaRoblox2016ToolStateMachine::release_world_pickup);
 	ClassDB::bind_static_method("VextoriaRoblox2016ToolStateMachine", D_METHOD("forget_tool", "tool_object_id"), &VextoriaRoblox2016ToolStateMachine::forget_tool);
 }

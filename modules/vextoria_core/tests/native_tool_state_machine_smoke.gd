@@ -39,6 +39,43 @@ func _initialize() -> void:
 		var reached: int = ClassDB.class_call_static(machine, "advance_toward", tool_id, 0, unequip_generation)
 		assert(reached == expected_state, "Tool unequip did not descend one Roblox state rung at a time")
 
+	# Handle.Touched is connected while the Tool is at IN_WORKSPACE. Concurrent
+	# callbacks for that one Tool must be serialized natively, but Roblox does
+	# not impose a cooldown on picking up separate tools.
+	const pickup_tool_a := 783422
+	const pickup_tool_b := 783423
+	var pickup_generation_a: int = ClassDB.class_call_static(machine, "begin_transition", pickup_tool_a, 2)
+	var pickup_generation_b: int = ClassDB.class_call_static(machine, "begin_transition", pickup_tool_b, 2)
+	for expected_state in [1, 2]:
+		assert(ClassDB.class_call_static(machine, "advance_toward", pickup_tool_a, 2, pickup_generation_a) == expected_state)
+		assert(ClassDB.class_call_static(machine, "advance_toward", pickup_tool_b, 2, pickup_generation_b) == expected_state)
+	var claim_a: int = ClassDB.class_call_static(machine, "try_claim_world_pickup", pickup_tool_a)
+	assert(claim_a > 0, "live Workspace Tool pickup was not claimable")
+	assert(ClassDB.class_call_static(machine, "try_claim_world_pickup", pickup_tool_a) == 0,
+		"duplicate callback claimed the same in-flight Workspace Tool")
+	var claim_b: int = ClassDB.class_call_static(machine, "try_claim_world_pickup", pickup_tool_b)
+	assert(claim_b > 0, "claiming one Tool incorrectly rate-limited a distinct Tool")
+	ClassDB.class_call_static(machine, "release_world_pickup", pickup_tool_a, claim_a)
+	var replacement_claim_a: int = ClassDB.class_call_static(machine, "try_claim_world_pickup", pickup_tool_a)
+	assert(replacement_claim_a > 0 && replacement_claim_a != claim_a,
+		"released pickup claim could not be immediately reacquired")
+	ClassDB.class_call_static(machine, "release_world_pickup", pickup_tool_a, claim_a)
+	assert(ClassDB.class_call_static(machine, "try_claim_world_pickup", pickup_tool_a) == 0,
+		"stale claim release cleared a newer claim")
+	var leave_workspace_generation: int = ClassDB.class_call_static(machine, "begin_transition", pickup_tool_a, 0)
+	assert(ClassDB.class_call_static(machine, "advance_toward", pickup_tool_a, 0, leave_workspace_generation) == 1,
+		"Workspace pickup claim test did not advance the native state")
+	assert(ClassDB.class_call_static(machine, "try_claim_world_pickup", pickup_tool_a) == 0,
+		"Tool outside Workspace remained eligible for pickup")
+	assert(ClassDB.class_call_static(machine, "try_claim_world_pickup", pickup_tool_b) == 0,
+		"state transition on one Tool incorrectly cleared another Tool's claim")
+	ClassDB.class_call_static(machine, "release_world_pickup", pickup_tool_a, replacement_claim_a)
+	ClassDB.class_call_static(machine, "release_world_pickup", pickup_tool_b, claim_b)
+	assert(ClassDB.class_call_static(machine, "try_claim_world_pickup", pickup_tool_b) > claim_b,
+		"untouched Tool claim could not be released and reacquired")
+	ClassDB.class_call_static(machine, "forget_tool", pickup_tool_a)
+	ClassDB.class_call_static(machine, "forget_tool", pickup_tool_b)
+
 	var reset_generation: int = ClassDB.class_call_static(machine, "begin_transition", tool_id, 5)
 	ClassDB.class_call_static(machine, "forget_tool", tool_id)
 	assert(ClassDB.class_call_static(machine, "get_state", tool_id) == 0,
@@ -47,5 +84,5 @@ func _initialize() -> void:
 		"forget_tool retained a stale transition generation")
 	assert(ClassDB.class_call_static(machine, "advance_toward", tool_id, 5, reset_generation) == -1,
 		"forgotten Tool accepted a late deferred transition")
-	print("VEXTORIA_NATIVE_TOOL_STATE_MACHINE_PASS: Roblox 2016 reducer, ordered equip/unequip, stale callback rejection, teardown")
+	print("VEXTORIA_NATIVE_TOOL_STATE_MACHINE_PASS: Roblox 2016 reducer, ordered equip/unequip, native per-Tool pickup claims, stale callback rejection, teardown")
 	quit(0)

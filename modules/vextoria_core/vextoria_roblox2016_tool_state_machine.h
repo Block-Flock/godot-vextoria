@@ -34,5 +34,9 @@ public:
 	static int advance_toward(int64_t p_tool_object_id, int p_target, int64_t p_expected_generation);
 	static int get_state(int64_t p_tool_object_id);
 	static int64_t get_transition_generation(int64_t p_tool_object_id);
+	// Atomically claim a Tool while it is still in Workspace. This only
+	// serializes duplicate pickup requests for the same Tool; it is not a timer.
+	static int64_t try_claim_world_pickup(int64_t p_tool_object_id);
+	static void release_world_pickup(int64_t p_tool_object_id, int64_t p_claim_token);
 	static void forget_tool(int64_t p_tool_object_id);
 };

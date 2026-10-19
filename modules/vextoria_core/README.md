@@ -244,7 +244,10 @@ transitional fallback for non-Vextoria Godot builds. The fork-native
 backend states and reentrant transition generations, indexed by each Tool's
 Godot ObjectID and explicitly erased during `PreDelete`; the managed
 compatibility layer still resolves Roblox hierarchy prerequisites and
-dispatches the corresponding lifecycle effects/signals. Script events,
+dispatches the corresponding lifecycle effects/signals. It also owns an
+atomic per-Tool Workspace pickup claim: duplicate concurrent requests for one
+Tool serialize, claims are released on transition out of `IN_WORKSPACE`, and
+distinct Tools have no artificial time-based cooldown. Script events,
 physics lifecycle, and replication remain managed and are not claimed as
 migrated by these classes.
 
@@ -258,8 +261,9 @@ Smoke coverage:
   selected Node; the managed Creator adapter materializes gameplay Instances
   and still dispatches domain side effects.
 - `tests/native_tool_state_machine_smoke.gd`: all 32 prerequisite combinations,
-  ordered equip/unequip rungs, stale/reentrant transition rejection, invalid
-  state targets, and explicit ObjectID cleanup.
+  ordered equip/unequip rungs, stale/reentrant transition rejection, per-Tool
+  pickup claim/release and cross-Tool independence, invalid state targets, and
+  explicit ObjectID cleanup.
 - `tests/part_runtime_smoke.gd`: native physics identity, mesh and collision
   changes, toggles, save/reopen.
 - `tests/editor_slice_smoke.gd`: real Godot CreateDialog/SceneTreeDock,
