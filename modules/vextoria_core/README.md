@@ -237,9 +237,11 @@ Smoke coverage:
 
 - The client fork smoke stages `engine/tests/native_creator_selection_state_smoke.gd`
   into its test project: it covers engine-owned selection membership/order,
-  duplicate suppression, stale-Node pruning and per-owner cleanup. Native state
-  records Godot ObjectIDs; the managed Creator adapter materializes gameplay
-  Instances and still dispatches domain side effects.
+  duplicate suppression, root eligibility, stale-Node pruning, immediate
+  ancestry-removal behavior, multiple owners, and per-owner cleanup. Native
+  state records Godot ObjectIDs and connects one parent-changing listener per
+  selected Node; the managed Creator adapter materializes gameplay Instances
+  and still dispatches domain side effects.
 - `tests/native_tool_state_machine_smoke.gd`: all 32 prerequisite combinations,
   ordered equip/unequip rungs, stale/reentrant transition rejection, invalid
   state targets, and explicit ObjectID cleanup.

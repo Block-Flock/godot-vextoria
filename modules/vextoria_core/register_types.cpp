@@ -90,11 +90,13 @@ void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(VextoriaRoblox2016ToolStateMachine);
 	GDREGISTER_CLASS(VextoriaCreatorSelectionState);
 	GDREGISTER_CLASS(VextoriaSceneHierarchy);
+	VextoriaCreatorSelectionState::initialize();
 }
 
 void uninitialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
+	VextoriaCreatorSelectionState::shutdown();
 	Part::clear_shape_asset_cache();
 }

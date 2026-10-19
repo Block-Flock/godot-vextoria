@@ -18,10 +18,13 @@ protected:
 	static void _bind_methods();
 
 public:
+	static void initialize();
+	static void shutdown();
 	static bool select_node(int64_t p_owner_object_id, Node *p_selection_root, Node *p_node);
 	static bool deselect_node(int64_t p_owner_object_id, Node *p_node);
 	static bool has_node(int64_t p_owner_object_id, Node *p_selection_root, Node *p_node);
 	static Array get_selected_nodes(int64_t p_owner_object_id, Node *p_selection_root);
 	static void clear_selection(int64_t p_owner_object_id);
 	static void forget_owner(int64_t p_owner_object_id);
+	void _on_selected_node_parent_changing(Node *p_old_parent, Node *p_new_parent, int64_t p_node_object_id);
 };
