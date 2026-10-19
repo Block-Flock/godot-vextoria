@@ -227,6 +227,22 @@ func _initialize() -> void:
 	_assert(_set_instance_parent(detached, parent), "detached Instance reattach failed")
 	_assert(_instance_names_from_api(parent) == ["Third", "Second", "First", "Detached"], "native child API omitted attached Instance")
 
+	var predelete_root := ClassDB.instantiate("Folder") as Node
+	var predelete_child := ClassDB.instantiate("Folder") as Node
+	_assert(predelete_root != null and predelete_child != null,
+		"native Folder classes could not be instantiated for destruction lifecycle coverage")
+	if predelete_root != null and predelete_child != null:
+		var predelete_order: Array[String] = []
+		predelete_root.connect("vextoria_instance_predelete", func(): predelete_order.append("root"))
+		predelete_child.connect("vextoria_instance_predelete", func(): predelete_order.append("child"))
+		root.add_child(predelete_root)
+		predelete_root.add_child(predelete_child)
+		_assert(_lock_instance_parent(predelete_root), "native predelete root did not accept ParentLocked")
+		_assert(_lock_instance_parent(predelete_child), "native predelete child did not accept ParentLocked")
+		predelete_root.free()
+		_assert(predelete_order == ["root", "child"],
+			"native destruction notification did not run once in Godot parent-first PREDELETE order")
+
 	parent.free()
 	generic_instance.free()
 	generic_spatial.free()

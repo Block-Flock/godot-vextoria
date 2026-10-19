@@ -292,6 +292,17 @@ void Node::_notification(int p_notification) {
 				return;
 			}
 #endif
+			if (_is_vextoria_instance_node()) {
+				// Roblox Instance destruction has its own logical lifecycle, which
+				// must run while the native node and its Instance descendants are
+				// still available. This is intentionally distinct from parent-change
+				// notifications: PREDELETE is terminal, not a reparent operation.
+				emit_signal(SNAME("vextoria_instance_predelete"));
+				// ParentLocked blocks authored Parent changes, not destruction of the
+				// Godot Node itself. Leaving the native child linked here would make
+				// parent teardown retain a pointer to an object already being freed.
+				data.vextoria_parent_locked = false;
+			}
 			if (data.owner) {
 				_clean_up_owner();
 			}
@@ -4122,6 +4133,7 @@ void Node::_bind_methods() {
 
 	ADD_SIGNAL(MethodInfo("child_order_changed"));
 	ADD_SIGNAL(MethodInfo("vextoria_parent_changed"));
+	ADD_SIGNAL(MethodInfo("vextoria_instance_predelete"));
 	ADD_SIGNAL(MethodInfo("vextoria_parent_changing",
 		PropertyInfo(Variant::OBJECT, "old_parent", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node"),
 		PropertyInfo(Variant::OBJECT, "new_parent", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, "Node")));
