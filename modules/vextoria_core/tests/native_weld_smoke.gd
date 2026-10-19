@@ -43,6 +43,16 @@ func _run() -> void:
 	var joint_rid := weld.get_rid()
 	weld.configure_weld(a, b, c0, c1)
 	await _settle()
+	world.remove_child(weld)
+	if not _check(PhysicsServer3D.joint_get_type(joint_rid) != PhysicsServer3D.JOINT_TYPE_6DOF,
+		"leaving the SceneTree retained the Jolt constraint"):
+		return
+	world.add_child(weld)
+	weld.owner = world
+	await process_frame
+	if not _check(PhysicsServer3D.joint_get_type(joint_rid) == PhysicsServer3D.JOINT_TYPE_6DOF,
+		"re-entering the SceneTree did not restore the Weld constraint"):
+		return
 	var error := (a.global_transform * c0).origin.distance_to((b.global_transform * c1).origin)
 	if not _check(error < 0.03 and b.global_basis.is_equal_approx(expected.basis), "authored independent frames did not converge: pivot error=" + str(error)):
 		return

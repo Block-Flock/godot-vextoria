@@ -65,12 +65,17 @@ void Weld::endpoint_property_changed(const StringName &p_property) {
 }
 
 void Weld::_notification(int p_what) {
-	if (p_what == NOTIFICATION_READY) {
+	if (p_what == NOTIFICATION_POST_ENTER_TREE) {
 		watch_endpoints(Object::cast_to<PhysicsBody3D>(get_node_or_null(get_node_a())), Object::cast_to<PhysicsBody3D>(get_node_or_null(get_node_b())));
-		_update_joint();
 	} else if (p_what == NOTIFICATION_EXIT_TREE) {
 		disconnect_endpoints();
 	}
+	// Joint3D owns the PhysicsServer RID lifecycle. In particular, its exit-tree
+	// notification clears the Jolt constraint before the node or either endpoint
+	// is destroyed; skipping this base notification leaves a live JPH constraint
+	// referenced during shutdown. Its post-enter notification also rebuilds the
+	// constraint after an ordinary SceneTree reparent.
+	Generic6DOFJoint3D::_notification(p_what);
 }
 
 Weld::~Weld() {
