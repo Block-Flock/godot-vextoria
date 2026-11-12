@@ -872,14 +872,25 @@ void RobloxSmoothTerrainManager::set_terrain_data(const Ref<TerrainData> &data) 
 
 Ref<TerrainData> RobloxSmoothTerrainManager::get_terrain_data() const { return _data; }
 void RobloxSmoothTerrainManager::set_view_distance(double distance) {
-	_view_distance = std::max(32.0, distance);
+	const double next_distance = std::max(32.0, distance);
+	if (Math::is_equal_approx(_view_distance, next_distance)) return;
+	_view_distance = next_distance;
 	_adaptive_view_distance = _view_distance * _performance_distance_scale;
 	_force_stream_update = true;
 }
 double RobloxSmoothTerrainManager::get_view_distance() const { return _view_distance; }
-void RobloxSmoothTerrainManager::set_collision_enabled(bool enabled) { _collision_enabled = enabled; _force_stream_update = true; }
+void RobloxSmoothTerrainManager::set_collision_enabled(bool enabled) {
+	if (_collision_enabled == enabled) return;
+	_collision_enabled = enabled;
+	_force_stream_update = true;
+}
 bool RobloxSmoothTerrainManager::get_collision_enabled() const { return _collision_enabled; }
-void RobloxSmoothTerrainManager::set_collision_distance(double distance) { _collision_distance = std::max(0.0, distance); _force_stream_update = true; }
+void RobloxSmoothTerrainManager::set_collision_distance(double distance) {
+	const double next_distance = std::max(0.0, distance);
+	if (Math::is_equal_approx(_collision_distance, next_distance)) return;
+	_collision_distance = next_distance;
+	_force_stream_update = true;
+}
 double RobloxSmoothTerrainManager::get_collision_distance() const { return _collision_distance; }
 void RobloxSmoothTerrainManager::set_viewer_world_positions(const PackedVector3Array &positions) {
 	bool changed = positions.size() != _viewer_world_positions.size();
@@ -899,7 +910,9 @@ void RobloxSmoothTerrainManager::set_viewer_world_positions(const PackedVector3A
 void RobloxSmoothTerrainManager::set_mesh_build_budget_ms(double budget) { _mesh_build_budget_ms = std::clamp(budget, 0.25, 8.0); }
 double RobloxSmoothTerrainManager::get_mesh_build_budget_ms() const { return _mesh_build_budget_ms; }
 void RobloxSmoothTerrainManager::set_maximum_lod_level(int level) {
-	_maximum_lod_level = std::clamp(level, 0, RobloxSmoothLodOctreePolicy::CHUNK_LEVELS - 1);
+	const int next_level = std::clamp(level, 0, RobloxSmoothLodOctreePolicy::CHUNK_LEVELS - 1);
+	if (_maximum_lod_level == next_level) return;
+	_maximum_lod_level = next_level;
 	_force_stream_update = true;
 }
 int RobloxSmoothTerrainManager::get_maximum_lod_level() const { return _maximum_lod_level; }
@@ -964,7 +977,7 @@ void RobloxSmoothTerrainManager::_vextoria_process(double delta) {
 	if (_viewer_positions.empty())
 		_viewer_positions.push_back(_viewer_position);
 	_viewer_position = _viewer_positions.front();
-	_stream_accumulator += delta;
+	_stream_accumulator = std::min(_stream_accumulator + delta, 0.35);
 	_performance_sample_accumulator += delta;
 
 	// Treat the configured view distance as a quality target, not a hard
@@ -1008,12 +1021,10 @@ void RobloxSmoothTerrainManager::_vextoria_process(double delta) {
 	// refresh often enough that a normal walk does not outrun the requested LOD.
 	const bool movement_refresh_due = moved
 			&& (_stream_accumulator >= 0.12 || movement_distance_squared >= 1024.0f);
-	// During the first native handoff, keep consuming the bounded mesh budget on
-	// every frame. Waiting for the steady-state 350 ms streaming tick here turns
-	// a finite import into a minutes-long construction stall. Once the desired
-	// set is complete, movement and the normal periodic refresh use the Roblox-like
-	// streaming cadence again.
-	if (_force_stream_update || !_streaming_complete || movement_refresh_due || _stream_accumulator >= 0.35) {
+	// During construction, keep consuming the bounded mesh budget every frame.
+	// Once complete, refresh only for viewer, data, or setting changes; rebuilding
+	// octree selection on an idle timer adds recurring CPU/allocator hitches.
+	if (_force_stream_update || !_streaming_complete || movement_refresh_due) {
 		_stream_accumulator = 0.0;
 		_update_streaming();
 		_force_stream_update = false;
@@ -1113,6 +1124,7 @@ Dictionary RobloxSmoothTerrainManager::get_runtime_statistics() const {
 	statistics["lod_transition_count"] = static_cast<int64_t>(_metric_lod_transitions.load(std::memory_order_relaxed));
 	statistics["lod_split_count"] = static_cast<int64_t>(_metric_lod_splits.load(std::memory_order_relaxed));
 	statistics["lod_merge_count"] = static_cast<int64_t>(_metric_lod_merges.load(std::memory_order_relaxed));
+	statistics["streaming_update_count"] = static_cast<int64_t>(_metric_streaming_updates.load(std::memory_order_relaxed));
 	statistics["maximum_lod_level"] = _maximum_lod_level;
 	statistics["view_distance"] = _view_distance;
 	statistics["adaptive_view_distance"] = _adaptive_view_distance;
@@ -1146,6 +1158,7 @@ void RobloxSmoothTerrainManager::_rebuild_lod_cache() {
 	_metric_lod_transitions.store(0, std::memory_order_relaxed);
 	_metric_lod_splits.store(0, std::memory_order_relaxed);
 	_metric_lod_merges.store(0, std::memory_order_relaxed);
+	_metric_streaming_updates.store(0, std::memory_order_relaxed);
 }
 
 void RobloxSmoothTerrainManager::_consume_data_changes() {
@@ -1164,7 +1177,7 @@ void RobloxSmoothTerrainManager::_consume_data_changes() {
 		_lod_cache_dirty = true;
 		_mesh_cache.clear();
 		_mesh_cache_clock = 0;
-		_stream_accumulator = 0.35;
+		_force_stream_update = true;
 		return;
 	}
 
@@ -1173,7 +1186,7 @@ void RobloxSmoothTerrainManager::_consume_data_changes() {
 	_data_revision = current_revision;
 	_mark_rendered_region_dirty(dirty_min, dirty_max);
 	_invalidate_mesh_cache_region(dirty_min, dirty_max);
-	_stream_accumulator = 0.35;
+	_force_stream_update = true;
 }
 
 bool RobloxSmoothTerrainManager::_render_key_intersects_region(
@@ -1285,6 +1298,7 @@ double RobloxSmoothTerrainManager::_distance_to_chunk(const RenderKey &key) cons
 }
 
 void RobloxSmoothTerrainManager::_update_streaming() {
+	_metric_streaming_updates.fetch_add(1, std::memory_order_relaxed);
 	if (_data.is_null()) {
 		_streaming_complete = false;
 		_required_chunk_count = 0;

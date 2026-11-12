@@ -234,6 +234,7 @@ private:
 	std::atomic<uint64_t> _metric_lod_transitions{0};
 	std::atomic<uint64_t> _metric_lod_splits{0};
 	std::atomic<uint64_t> _metric_lod_merges{0};
+	std::atomic<uint64_t> _metric_streaming_updates{0};
 
 	void _ensure_async_workers();
 	static void _async_worker_entry(void *p_userdata);
