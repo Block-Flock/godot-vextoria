@@ -181,7 +181,18 @@ bool VextoriaSceneHierarchy::dispatch_descendant_event(Node *p_moving_root, Node
 }
 
 Node *VextoriaSceneHierarchy::find_instance_child_by_name(Node *p_parent, const String &p_name) {
-	for (Node *child : collect_instance_children(p_parent)) {
+	if (p_parent == nullptr) {
+		return nullptr;
+	}
+	const int32_t child_count = p_parent->get_child_count(false);
+	for (int32_t i = 0; i < child_count; i++) {
+		Node *child = p_parent->get_child(i, false);
+		if (!is_instance_node(child)) {
+			if (Node *match = find_instance_child_by_name(child, p_name)) {
+				return match;
+			}
+			continue;
+		}
 		if (child->get_name() == p_name) {
 			return child;
 		}

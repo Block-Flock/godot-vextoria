@@ -106,6 +106,20 @@ func _initialize() -> void:
 	_assert(_find_instance_child_by_name(parent, "Missing") == null, "native direct-name lookup returned a node for a missing name")
 	_assert(_instance_names_from_api(first) == ["FirstChild", "ThroughHelper"], "native Instance child query did not cross a private helper Node")
 	_assert(_find_instance_child_by_name(first, "ThroughHelper") == instance_through_helper, "native direct lookup did not treat private helper Nodes as transparent")
+	var ordered_lookup_parent := Node.new()
+	ordered_lookup_parent.set_meta("_vextoria_instance", true)
+	var ordered_lookup_helper := Node.new()
+	var first_lookup_match := Node.new()
+	first_lookup_match.name = "DuplicateLookupName"
+	first_lookup_match.set_meta("_vextoria_instance", true)
+	var later_lookup_match := Node.new()
+	later_lookup_match.name = first_lookup_match.name
+	later_lookup_match.set_meta("_vextoria_instance", true)
+	ordered_lookup_parent.add_child(ordered_lookup_helper)
+	ordered_lookup_helper.add_child(first_lookup_match)
+	ordered_lookup_parent.add_child(later_lookup_match)
+	_assert(_find_instance_child_by_name(ordered_lookup_parent, first_lookup_match.name) == first_lookup_match,
+		"native recursive name lookup changed ordered helper-node traversal")
 	_assert(_instance_parent_from_api(instance_through_helper) == first, "native Instance parent query exposed a private helper Node")
 	_assert(_get_instance_child_index(instance_through_helper) == 1, "native Instance child index disagreed with transparent helper traversal")
 	_assert(_set_instance_parent(instance_through_helper, first), "native same-logical-parent assignment failed")
