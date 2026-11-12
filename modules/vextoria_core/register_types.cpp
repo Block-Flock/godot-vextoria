@@ -71,6 +71,7 @@ void initialize_vextoria_core_module(ModuleInitializationLevel p_level) {
 	// and Model without inventing managed stand-ins for their Godot base types.
 	GDREGISTER_ABSTRACT_CLASS(VextoriaInstance);
 	GDREGISTER_ABSTRACT_CLASS(VextoriaSpatialInstance);
+	GDREGISTER_INTERNAL_CLASS(VextoriaTool);
 	GDREGISTER_CLASS(Part);
 	// AppearanceMaterial is an optional authored override. The default Part
 	// derives its material from the registry; do not retain that live GPU

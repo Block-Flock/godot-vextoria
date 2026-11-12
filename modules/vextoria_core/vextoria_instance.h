@@ -95,6 +95,18 @@ public:
 	void set_roblox_visible(bool p_visible);
 };
 
+// Tool is an Instance container, not a physics body. Its Handle descendants
+// provide the world-space location and physical assembly.
+class VextoriaTool : public VextoriaSpatialInstance {
+	GDCLASS(VextoriaTool, VextoriaSpatialInstance);
+
+protected:
+	static void _bind_methods() {}
+
+public:
+	VextoriaTool() = default;
+};
+
 // A Part is the physics body itself. Its visual and collision children are
 // internal Godot implementation details, not additional Vextoria Instances.
 class Part : public RigidBody3D {

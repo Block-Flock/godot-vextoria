@@ -15,12 +15,21 @@ func _initialize() -> void:
 		"native hierarchy factory did not create the generic spatial Vextoria Instance base")
 	_assert(not ClassDB.can_instantiate("VextoriaSpatialInstance"),
 		"generic spatial implementation base leaked into Godot's public CreateDialog class list")
+	var tool := ClassDB.class_call_static("VextoriaSceneHierarchy", "create_tool_instance") as Node3D
+	_assert(tool != null and tool.get_class() == "VextoriaTool",
+		"Tool did not use its typed native Node3D container")
+	_assert(not tool is PhysicsBody3D,
+		"Roblox Tool container must not create a duplicate physics body")
+	_assert(ClassDB.class_call_static("VextoriaSceneHierarchy", "is_instance_node", tool),
+		"native Tool container is missing Instance identity")
 	_assert(ClassDB.is_parent_class("Model", "VextoriaSpatialInstance"),
 		"native Model does not inherit the shared spatial Instance base")
 	if generic_instance != null:
 		root.add_child(generic_instance)
 	if generic_spatial != null:
 		root.add_child(generic_spatial)
+	if tool != null:
+		root.add_child(tool)
 
 	var parent := Node.new()
 	parent.name = "InstanceParent"

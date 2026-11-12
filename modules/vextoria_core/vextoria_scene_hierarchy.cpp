@@ -85,6 +85,10 @@ Node3D *VextoriaSceneHierarchy::create_generic_spatial_instance() {
 	return memnew(VextoriaSpatialInstance);
 }
 
+Node3D *VextoriaSceneHierarchy::create_tool_instance() {
+	return memnew(VextoriaTool);
+}
+
 bool VextoriaSceneHierarchy::is_instance_node(Node *p_node) {
 	// Native object constructors register identity with Node itself. Node keeps
 	// the metadata fallback for imported/custom proxies that have not migrated.
@@ -412,6 +416,7 @@ bool VextoriaSceneHierarchy::set_instance_parent_internal(Node *p_node, Node *p_
 void VextoriaSceneHierarchy::_bind_methods() {
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("create_generic_instance"), &VextoriaSceneHierarchy::create_generic_instance);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("create_generic_spatial_instance"), &VextoriaSceneHierarchy::create_generic_spatial_instance);
+	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("create_tool_instance"), &VextoriaSceneHierarchy::create_tool_instance);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("is_instance_node", "node"), &VextoriaSceneHierarchy::is_instance_node);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("is_instance_ancestor_of", "ancestor", "descendant"), &VextoriaSceneHierarchy::is_instance_ancestor_of);
 	ClassDB::bind_static_method("VextoriaSceneHierarchy", D_METHOD("collect_descendant_event_dispatch_plan", "moving_root", "first_ancestor", "shared_ancestor_branch"), &VextoriaSceneHierarchy::collect_descendant_event_dispatch_plan);
