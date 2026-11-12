@@ -45,6 +45,16 @@ func _run() -> void:
 	rotate.global_transform = Transform3D(Basis.from_euler(Vector3(1, 2, 3)), Vector3(80, 90, 100))
 	rotate.configure_rotate(a, b, c0, c1)
 	await _settle(4)
+	world.remove_child(rotate)
+	if not _check(PhysicsServer3D.joint_get_type(rid) != PhysicsServer3D.JOINT_TYPE_HINGE,
+		"leaving the SceneTree retained the Rotate constraint"):
+		return
+	world.add_child(rotate)
+	rotate.owner = world
+	await process_frame
+	if not _check(PhysicsServer3D.joint_get_type(rid) == PhysicsServer3D.JOINT_TYPE_HINGE and rotate.get_rid() == rid,
+		"re-entering the SceneTree did not restore the same Rotate constraint"):
+		return
 	var axis := (a.global_basis * c0.basis.z).normalized()
 	var before := b.global_basis
 	b.apply_torque_impulse(axis * 2)

@@ -59,12 +59,14 @@ void Rotate::endpoint_property_changed(const StringName &p_property) {
 }
 
 void Rotate::_notification(int p_what) {
-	if (p_what == NOTIFICATION_READY) {
+	if (p_what == NOTIFICATION_POST_ENTER_TREE) {
 		watch_endpoints(Object::cast_to<PhysicsBody3D>(get_node_or_null(get_node_a())), Object::cast_to<PhysicsBody3D>(get_node_or_null(get_node_b())));
-		_update_joint();
 	} else if (p_what == NOTIFICATION_EXIT_TREE) {
 		disconnect_endpoints();
 	}
+	// Joint3D owns PhysicsServer constraint teardown and recreation on tree
+	// exit/re-entry. Keep its lifecycle active alongside the endpoint watchers.
+	HingeJoint3D::_notification(p_what);
 }
 
 Rotate::~Rotate() {
