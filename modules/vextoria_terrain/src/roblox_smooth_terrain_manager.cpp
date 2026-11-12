@@ -884,6 +884,13 @@ void RobloxSmoothTerrainManager::set_collision_enabled(bool enabled) {
 	_force_stream_update = true;
 }
 bool RobloxSmoothTerrainManager::get_collision_enabled() const { return _collision_enabled; }
+void RobloxSmoothTerrainManager::set_rendering_enabled(bool enabled) {
+	if (_rendering_enabled == enabled) return;
+	_rendering_enabled = enabled;
+	_streaming_complete = false;
+	_force_stream_update = true;
+}
+bool RobloxSmoothTerrainManager::get_rendering_enabled() const { return _rendering_enabled; }
 void RobloxSmoothTerrainManager::set_collision_distance(double distance) {
 	const double next_distance = std::max(0.0, distance);
 	if (Math::is_equal_approx(_collision_distance, next_distance)) return;
@@ -1333,6 +1340,11 @@ void RobloxSmoothTerrainManager::_update_streaming() {
 		}
 	}
 	selected.assign(selected_set.begin(), selected_set.end());
+	if (!_rendering_enabled) {
+		selected.erase(std::remove_if(selected.begin(), selected.end(), [this](const RenderKey &key) {
+			return !_collision_enabled || key.level != 0 || _distance_to_chunk(key) > _collision_distance;
+		}), selected.end());
+	}
 	std::sort(selected.begin(), selected.end(), [](const RenderKey &a, const RenderKey &b) {
 		if (a.level != b.level) return a.level < b.level;
 		if (a.x != b.x) return a.x < b.x;
@@ -1784,31 +1796,36 @@ void RobloxSmoothTerrainManager::_install_async_chunk(const RenderKey &key, bool
 	entry.collision = collision;
 	entry.retained_border_mask = p_result.retained_border_mask;
 	entry.revision = _data_revision;
-	if (meshes.solid.is_valid()) {
+	if (_rendering_enabled && meshes.solid.is_valid()) {
 		MeshInstance3D *mesh = memnew(MeshInstance3D);
 		mesh->set_mesh(meshes.solid);
 		mesh->set_material_override(_solid_material);
 		add_child(mesh);
 		mesh->set_name(_chunk_name(key, false));
 		entry.solid = mesh;
-		if (collision && !p_result.collision_faces.is_empty()) {
-			if (meshes.collision_shape.is_null()) {
-				Ref<ConcavePolygonShape3D> shape;
-				shape.instantiate();
-				shape->set_faces(p_result.collision_faces);
-				meshes.collision_shape = shape;
-			}
-			StaticBody3D *body = memnew(StaticBody3D);
-			body->set_collision_layer(VextoriaCollisionLayers::ROBLOX_STATIC);
-			body->set_collision_mask(VextoriaCollisionLayers::ROBLOX_DYNAMIC);
-			CollisionShape3D *collision_shape = memnew(CollisionShape3D);
-			collision_shape->set_shape(meshes.collision_shape);
-			body->add_child(collision_shape);
-			mesh->add_child(body);
-			entry.has_collision_shape = true;
-		}
 	}
-	if (meshes.water.is_valid()) {
+	if (collision && !p_result.collision_faces.is_empty()) {
+		if (meshes.collision_shape.is_null()) {
+			Ref<ConcavePolygonShape3D> shape;
+			shape.instantiate();
+			shape->set_faces(p_result.collision_faces);
+			meshes.collision_shape = shape;
+		}
+		StaticBody3D *body = memnew(StaticBody3D);
+		body->set_collision_layer(VextoriaCollisionLayers::ROBLOX_STATIC);
+		body->set_collision_mask(VextoriaCollisionLayers::ROBLOX_DYNAMIC);
+		CollisionShape3D *collision_shape = memnew(CollisionShape3D);
+		collision_shape->set_shape(meshes.collision_shape);
+		body->add_child(collision_shape);
+		if (entry.solid != nullptr)
+			entry.solid->add_child(body);
+		else {
+			add_child(body);
+			entry.collision_body = body;
+		}
+		entry.has_collision_shape = true;
+	}
+	if (_rendering_enabled && meshes.water.is_valid()) {
 		MeshInstance3D *mesh = memnew(MeshInstance3D);
 		mesh->set_mesh(meshes.water);
 		mesh->set_material_override(_water_material);
@@ -1826,33 +1843,38 @@ void RobloxSmoothTerrainManager::_install_chunk(
 	entry.collision = collision;
 	entry.retained_border_mask = retained_border_mask;
 	entry.revision = _data_revision;
-	if (meshes.solid.is_valid()) {
+	if (_rendering_enabled && meshes.solid.is_valid()) {
 		MeshInstance3D *mesh = memnew(MeshInstance3D);
 		mesh->set_mesh(meshes.solid);
 		mesh->set_material_override(_solid_material);
 		add_child(mesh);
 		mesh->set_name(_chunk_name(key, false));
 		entry.solid = mesh;
-		if (collision) {
-			if (meshes.collision_shape.is_null()) {
-				Ref<ArrayMesh> collision_mesh = meshes.solid_collision.is_valid()
-					? meshes.solid_collision
-					: meshes.solid;
-				meshes.collision_shape = collision_mesh->create_trimesh_shape();
+	}
+	if (collision && meshes.solid.is_valid()) {
+		if (meshes.collision_shape.is_null()) {
+			Ref<ArrayMesh> collision_mesh = meshes.solid_collision.is_valid()
+				? meshes.solid_collision
+				: meshes.solid;
+			meshes.collision_shape = collision_mesh->create_trimesh_shape();
+		}
+		if (meshes.collision_shape.is_valid()) {
+			StaticBody3D *body = memnew(StaticBody3D);
+			body->set_collision_layer(VextoriaCollisionLayers::ROBLOX_STATIC);
+			body->set_collision_mask(VextoriaCollisionLayers::ROBLOX_DYNAMIC);
+			CollisionShape3D *collision_shape = memnew(CollisionShape3D);
+			collision_shape->set_shape(meshes.collision_shape);
+			body->add_child(collision_shape);
+			if (entry.solid != nullptr)
+				entry.solid->add_child(body);
+			else {
+				add_child(body);
+				entry.collision_body = body;
 			}
-			if (meshes.collision_shape.is_valid()) {
-				StaticBody3D *body = memnew(StaticBody3D);
-				body->set_collision_layer(VextoriaCollisionLayers::ROBLOX_STATIC);
-				body->set_collision_mask(VextoriaCollisionLayers::ROBLOX_DYNAMIC);
-				CollisionShape3D *collision_shape = memnew(CollisionShape3D);
-				collision_shape->set_shape(meshes.collision_shape);
-				body->add_child(collision_shape);
-				mesh->add_child(body);
-				entry.has_collision_shape = true;
-			}
+			entry.has_collision_shape = true;
 		}
 	}
-	if (meshes.water.is_valid()) {
+	if (_rendering_enabled && meshes.water.is_valid()) {
 		MeshInstance3D *mesh = memnew(MeshInstance3D);
 		mesh->set_mesh(meshes.water);
 		mesh->set_material_override(_water_material);
@@ -1871,6 +1893,7 @@ void RobloxSmoothTerrainManager::_remove_chunk(const RenderKey &key) {
 	}
 	if (it->second.solid != nullptr) it->second.solid->queue_free();
 	if (it->second.water != nullptr) it->second.water->queue_free();
+	if (it->second.collision_body != nullptr) it->second.collision_body->queue_free();
 	_rendered.erase(it);
 	_dirty_render_keys.erase(key);
 }
@@ -1884,10 +1907,14 @@ String RobloxSmoothTerrainManager::_chunk_name(const RenderKey &key, bool water)
 void RobloxSmoothTerrainManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_terrain_data", "data"), &RobloxSmoothTerrainManager::set_terrain_data);
 	ClassDB::bind_method(D_METHOD("get_terrain_data"), &RobloxSmoothTerrainManager::get_terrain_data);
+	ClassDB::bind_method(D_METHOD("sample_water_density", "local_position"), &RobloxSmoothTerrainManager::sample_water_density);
+	ClassDB::bind_method(D_METHOD("find_water_surface_y", "local_position", "search_radius"), &RobloxSmoothTerrainManager::find_water_surface_y, DEFVAL(8.0));
 	ClassDB::bind_method(D_METHOD("set_view_distance", "distance"), &RobloxSmoothTerrainManager::set_view_distance);
 	ClassDB::bind_method(D_METHOD("get_view_distance"), &RobloxSmoothTerrainManager::get_view_distance);
 	ClassDB::bind_method(D_METHOD("set_collision_enabled", "enabled"), &RobloxSmoothTerrainManager::set_collision_enabled);
 	ClassDB::bind_method(D_METHOD("get_collision_enabled"), &RobloxSmoothTerrainManager::get_collision_enabled);
+	ClassDB::bind_method(D_METHOD("set_rendering_enabled", "enabled"), &RobloxSmoothTerrainManager::set_rendering_enabled);
+	ClassDB::bind_method(D_METHOD("get_rendering_enabled"), &RobloxSmoothTerrainManager::get_rendering_enabled);
 	ClassDB::bind_method(D_METHOD("set_collision_distance", "distance"), &RobloxSmoothTerrainManager::set_collision_distance);
 	ClassDB::bind_method(D_METHOD("get_collision_distance"), &RobloxSmoothTerrainManager::get_collision_distance);
 	ClassDB::bind_method(D_METHOD("set_viewer_world_positions", "positions"), &RobloxSmoothTerrainManager::set_viewer_world_positions);
@@ -1911,6 +1938,7 @@ void RobloxSmoothTerrainManager::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_data", PROPERTY_HINT_RESOURCE_TYPE, "TerrainData"), "set_terrain_data", "get_terrain_data");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "view_distance", PROPERTY_HINT_RANGE, "32,2048,1"), "set_view_distance", "get_view_distance");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "collision_enabled"), "set_collision_enabled", "get_collision_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "rendering_enabled"), "set_rendering_enabled", "get_rendering_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "collision_distance", PROPERTY_HINT_RANGE, "0,512,1"), "set_collision_distance", "get_collision_distance");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "mesh_build_budget_ms", PROPERTY_HINT_RANGE, "1,33,0.5"), "set_mesh_build_budget_ms", "get_mesh_build_budget_ms");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "maximum_lod_level", PROPERTY_HINT_RANGE, "0,4,1"), "set_maximum_lod_level", "get_maximum_lod_level");

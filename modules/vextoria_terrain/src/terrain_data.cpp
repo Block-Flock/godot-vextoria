@@ -675,6 +675,8 @@ Dictionary TerrainData::load_roblox_smooth_grid(const PackedByteArray &p_source)
 
 	Vector3i minimum(std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max());
 	Vector3i maximum(std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::min());
+	Vector3i water_minimum(std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max());
+	Vector3i water_maximum(std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::min());
 	Vector3i previous_chunk;
 	int offset = 2;
 	int chunk_count = 0;
@@ -707,6 +709,14 @@ Dictionary TerrainData::load_roblox_smooth_grid(const PackedByteArray &p_source)
 					maximum.x = std::max(maximum.x, cell.x);
 					maximum.y = std::max(maximum.y, cell.y);
 					maximum.z = std::max(maximum.z, cell.z);
+					if (run.material == static_cast<int>(MATERIAL_WATER)) {
+						water_minimum.x = std::min(water_minimum.x, cell.x);
+						water_minimum.y = std::min(water_minimum.y, cell.y);
+						water_minimum.z = std::min(water_minimum.z, cell.z);
+						water_maximum.x = std::max(water_maximum.x, cell.x);
+						water_maximum.y = std::max(water_maximum.y, cell.y);
+						water_maximum.z = std::max(water_maximum.z, cell.z);
+					}
 				}
 			}
 			cell_offset += run.count;
@@ -772,6 +782,8 @@ Dictionary TerrainData::load_roblox_smooth_grid(const PackedByteArray &p_source)
 	result["occupied_cells"] = occupied_cells;
 	result["source_chunks"] = chunk_count;
 	result["water_cells"] = water_cells;
+	if (water_cells > 0)
+		result["water_bounds"] = AABB(Vector3(water_minimum), Vector3(water_maximum - water_minimum + Vector3i(1, 1, 1)));
 	result["source_min_y"] = source_min_y;
 	return result;
 }

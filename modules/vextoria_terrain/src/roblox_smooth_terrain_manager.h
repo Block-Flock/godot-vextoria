@@ -36,11 +36,15 @@ public:
 
 	void set_terrain_data(const Ref<TerrainData> &p_data);
 	Ref<TerrainData> get_terrain_data() const;
+	double sample_water_density(const Vector3 &p_local_position) const;
+	double find_water_surface_y(const Vector3 &p_local_position, double p_search_radius = 8.0) const;
 
 	void set_view_distance(double p_distance);
 	double get_view_distance() const;
 	void set_collision_enabled(bool p_enabled);
 	bool get_collision_enabled() const;
+	void set_rendering_enabled(bool p_enabled);
+	bool get_rendering_enabled() const;
 	void set_collision_distance(double p_distance);
 	double get_collision_distance() const;
 	void set_viewer_world_positions(const PackedVector3Array &p_positions);
@@ -76,11 +80,12 @@ private:
 	struct RenderEntry {
 		int lod = -1;
 		bool collision = false;
-	bool has_collision_shape = false;
+		bool has_collision_shape = false;
 		uint8_t retained_border_mask = 0;
 		uint64_t revision = 0;
 		MeshInstance3D *solid = nullptr;
 		MeshInstance3D *water = nullptr;
+		Node3D *collision_body = nullptr;
 	};
 
 	struct MeshPair {
@@ -123,6 +128,7 @@ private:
 	// overall view distance.
 	int _maximum_lod_level = RobloxSmoothLodOctreePolicy::CHUNK_LEVELS - 1;
 	bool _collision_enabled = true;
+	bool _rendering_enabled = true;
 	Vector3 _viewer_position;
 	std::vector<Vector3> _viewer_positions;
 	PackedVector3Array _viewer_world_positions;
