@@ -875,7 +875,6 @@ void RobloxSmoothTerrainManager::set_view_distance(double distance) {
 	const double next_distance = std::max(32.0, distance);
 	if (Math::is_equal_approx(_view_distance, next_distance)) return;
 	_view_distance = next_distance;
-	_adaptive_view_distance = _view_distance * _performance_distance_scale;
 	_force_stream_update = true;
 }
 double RobloxSmoothTerrainManager::get_view_distance() const { return _view_distance; }
@@ -978,29 +977,6 @@ void RobloxSmoothTerrainManager::_vextoria_process(double delta) {
 		_viewer_positions.push_back(_viewer_position);
 	_viewer_position = _viewer_positions.front();
 	_stream_accumulator = std::min(_stream_accumulator + delta, 0.35);
-	_performance_sample_accumulator += delta;
-
-	// Treat the configured view distance as a quality target, not a hard
-	// visibility cutoff. Stronger machines can carry the detailed LOD ring
-	// farther out; slower machines reduce only that detailed ring while the far
-	// terrain remains resident at coarse LOD.
-	if (_performance_sample_accumulator >= 1.0) {
-		_performance_sample_accumulator = 0.0;
-		const int fps = Engine::get_singleton()->get_frames_per_second();
-		float target_scale = 1.0f;
-		if (fps >= 100) target_scale = 1.75f;
-		else if (fps >= 75) target_scale = 1.5f;
-		else if (fps >= 58) target_scale = 1.25f;
-		else if (fps < 42) target_scale = 0.8f;
-
-		// Hysteresis avoids rebuilding the octree selection because of tiny FPS
-		// oscillations around a threshold.
-		if (Math::abs(target_scale - _performance_distance_scale) >= 0.2f) {
-			_performance_distance_scale = target_scale;
-			_adaptive_view_distance = std::max(32.0, _view_distance * (double)_performance_distance_scale);
-			_force_stream_update = true;
-		}
-	}
 
 	// Estimate viewer speed between streaming decisions so the trace can
 	// tie LOD churn/FPS drops to actual motion.
@@ -1127,8 +1103,8 @@ Dictionary RobloxSmoothTerrainManager::get_runtime_statistics() const {
 	statistics["streaming_update_count"] = static_cast<int64_t>(_metric_streaming_updates.load(std::memory_order_relaxed));
 	statistics["maximum_lod_level"] = _maximum_lod_level;
 	statistics["view_distance"] = _view_distance;
-	statistics["adaptive_view_distance"] = _adaptive_view_distance;
-	statistics["performance_distance_scale"] = _performance_distance_scale;
+	statistics["adaptive_view_distance"] = _view_distance;
+	statistics["performance_distance_scale"] = 1.0;
 	statistics["collision_distance"] = _collision_distance;
 	statistics["viewer_count"] = static_cast<int64_t>(_viewer_positions.size());
 	return statistics;
@@ -1315,7 +1291,7 @@ void RobloxSmoothTerrainManager::_update_streaming() {
 			_lod_coverage,
 			currently_rendered,
 			_viewer_positions,
-			_adaptive_view_distance,
+			_view_distance,
 			_data->get_cell_size(),
 			_maximum_lod_level);
 	// SmoothCluster's occupancy mip is intentionally preserved, but a very thin

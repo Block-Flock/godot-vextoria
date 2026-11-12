@@ -115,9 +115,6 @@ private:
 	// Configured fine-detail horizon. Occupied terrain outside this radius is
 	// still rendered using coarser octree leaves; it is not hard-despawned.
 	double _view_distance = 192.0;
-	double _adaptive_view_distance = 192.0;
-	float _performance_distance_scale = 1.0f;
-	double _performance_sample_accumulator = 0.0;
 	double _collision_distance = 48.0;
 	double _mesh_build_budget_ms = 1.5;
 	// L4 is a 256-cell leaf. Imported Roblox terrain can contain narrow rivers,
