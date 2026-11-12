@@ -1,11 +1,13 @@
 #include "terrain_data.h"
 
+#include "core/math/aabb.h"
 #include "core/variant/variant.h"
 #include "core/object/class_db.h"
 #include "core/string/print_string.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 
 
@@ -31,6 +33,93 @@ static uint32_t read_u32_le(const PackedByteArray &p_bytes, int p_offset) {
 			(static_cast<uint32_t>(p_bytes[p_offset + 2]) << 16) |
 			(static_cast<uint32_t>(p_bytes[p_offset + 3]) << 24);
 }
+
+namespace {
+constexpr int ROBLOX_SMOOTH_GRID_CHUNK_CELLS = 32 * 32 * 32;
+constexpr int ROBLOX_SMOOTH_GRID_MAX_BYTES = 64 * 1024 * 1024;
+constexpr int ROBLOX_SMOOTH_GRID_MAX_CHUNKS = 4096;
+constexpr int ROBLOX_SMOOTH_GRID_MAX_CELLS = 32'000'000;
+constexpr int ROBLOX_SMOOTH_GRID_MAX_AXIS_CELLS = 8192;
+constexpr int ROBLOX_SMOOTH_GRID_MAX_CHUNK_COORDINATE = (ROBLOX_SMOOTH_GRID_MAX_AXIS_CELLS + 31) / 32;
+
+struct RobloxSmoothGridRun {
+	int material = 0;
+	int occupancy = 0;
+	int count = 0;
+};
+
+static int32_t read_smooth_grid_i32_be(const PackedByteArray &p_source, int p_offset, int p_stride) {
+	const uint32_t bits = (static_cast<uint32_t>(p_source[p_offset]) << 24)
+		| (static_cast<uint32_t>(p_source[p_offset + p_stride]) << 16)
+		| (static_cast<uint32_t>(p_source[p_offset + p_stride * 2]) << 8)
+		| static_cast<uint32_t>(p_source[p_offset + p_stride * 3]);
+	int32_t result;
+	std::memcpy(&result, &bits, sizeof(result));
+	return result;
+}
+
+static bool read_smooth_grid_chunk(const PackedByteArray &p_source, int &r_offset,
+		int &r_chunk_count, Vector3i &r_previous, String &r_error) {
+	if (++r_chunk_count > ROBLOX_SMOOTH_GRID_MAX_CHUNKS) {
+		r_error = "Roblox SmoothGrid contains too many chunks.";
+		return false;
+	}
+	if (r_offset < 0 || r_offset + 12 > p_source.size()) {
+		r_error = "Truncated Roblox SmoothGrid coordinate.";
+		return false;
+	}
+	const int64_t x = static_cast<int64_t>(r_previous.x) + read_smooth_grid_i32_be(p_source, r_offset, 3);
+	const int64_t y = static_cast<int64_t>(r_previous.y) + read_smooth_grid_i32_be(p_source, r_offset + 1, 3);
+	const int64_t z = static_cast<int64_t>(r_previous.z) + read_smooth_grid_i32_be(p_source, r_offset + 2, 3);
+	r_offset += 12;
+	if (x < -ROBLOX_SMOOTH_GRID_MAX_CHUNK_COORDINATE || x > ROBLOX_SMOOTH_GRID_MAX_CHUNK_COORDINATE
+			|| y < -ROBLOX_SMOOTH_GRID_MAX_CHUNK_COORDINATE || y > ROBLOX_SMOOTH_GRID_MAX_CHUNK_COORDINATE
+			|| z < -ROBLOX_SMOOTH_GRID_MAX_CHUNK_COORDINATE || z > ROBLOX_SMOOTH_GRID_MAX_CHUNK_COORDINATE) {
+		r_error = "Roblox SmoothGrid coordinates exceed the terrain limit.";
+		return false;
+	}
+	r_previous = Vector3i(static_cast<int32_t>(x), static_cast<int32_t>(y), static_cast<int32_t>(z));
+	return true;
+}
+
+static bool read_smooth_grid_run(const PackedByteArray &p_source, int &r_offset,
+		int p_cell_offset, RobloxSmoothGridRun &r_run, String &r_error) {
+	if (r_offset >= p_source.size()) {
+		r_error = "Truncated Roblox SmoothGrid cell run.";
+		return false;
+	}
+	const uint8_t metadata = p_source[r_offset++];
+	r_run.material = metadata & 0x3f;
+	r_run.occupancy = r_run.material == 0 ? 0 : 255;
+	r_run.count = 1;
+	if ((metadata & 0x40) != 0) {
+		if (r_offset >= p_source.size()) {
+			r_error = "Truncated Roblox SmoothGrid occupancy.";
+			return false;
+		}
+		r_run.occupancy = p_source[r_offset++];
+	}
+	if ((metadata & 0x80) != 0) {
+		if (r_offset >= p_source.size()) {
+			r_error = "Truncated Roblox SmoothGrid run length.";
+			return false;
+		}
+		r_run.count = static_cast<int>(p_source[r_offset++]) + 1;
+	}
+	if (p_cell_offset + r_run.count > ROBLOX_SMOOTH_GRID_CHUNK_CELLS) {
+		r_error = "Roblox SmoothGrid run exceeds its chunk.";
+		return false;
+	}
+	return true;
+}
+
+static Vector3i smooth_grid_cell(const Vector3i &p_chunk, int p_index) {
+	return Vector3i(
+		p_chunk.x * 32 + p_index % 32,
+		p_chunk.y * 32 + p_index / (32 * 32),
+		p_chunk.z * 32 + (p_index / 32) % 32);
+}
+} // namespace
 
 TerrainData::TerrainData() {}
 TerrainData::~TerrainData() {}
@@ -572,6 +661,121 @@ void TerrainData::set_material_occupancy_samples(const PackedInt32Array &p_sampl
 	_end_edit();
 }
 
+Dictionary TerrainData::load_roblox_smooth_grid(const PackedByteArray &p_source) {
+	Dictionary result;
+	auto fail = [&result](const String &p_error) {
+		result["success"] = false;
+		result["error"] = p_error;
+		return result;
+	};
+	if (p_source.size() < 2 || p_source[0] != 1 || p_source[1] != 5)
+		return fail("Unsupported Roblox SmoothGrid payload.");
+	if (p_source.size() > ROBLOX_SMOOTH_GRID_MAX_BYTES)
+		return fail("Roblox SmoothGrid payload exceeds the source-size limit.");
+
+	Vector3i minimum(std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max(), std::numeric_limits<int32_t>::max());
+	Vector3i maximum(std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::min());
+	Vector3i previous_chunk;
+	int offset = 2;
+	int chunk_count = 0;
+	int occupied_cells = 0;
+	int water_cells = 0;
+	String error;
+	while (offset < p_source.size()) {
+		if (!read_smooth_grid_chunk(p_source, offset, chunk_count, previous_chunk, error))
+			return fail(error);
+		int cell_offset = 0;
+		while (cell_offset < ROBLOX_SMOOTH_GRID_CHUNK_CELLS) {
+			RobloxSmoothGridRun run;
+			if (!read_smooth_grid_run(p_source, offset, cell_offset, run, error))
+				return fail(error);
+			if (run.material != 0 && run.occupancy != 0) {
+				if (occupied_cells > ROBLOX_SMOOTH_GRID_MAX_CELLS - run.count)
+					return fail("Roblox SmoothGrid contains too many occupied cells.");
+				occupied_cells += run.count;
+				if (run.material == static_cast<int>(MATERIAL_WATER))
+					water_cells += run.count;
+				for (int index = cell_offset; index < cell_offset + run.count; ++index) {
+					const Vector3i cell = smooth_grid_cell(previous_chunk, index);
+					if (cell.x < -ROBLOX_SMOOTH_GRID_MAX_AXIS_CELLS || cell.x > ROBLOX_SMOOTH_GRID_MAX_AXIS_CELLS
+							|| cell.y < -ROBLOX_SMOOTH_GRID_MAX_AXIS_CELLS || cell.y > ROBLOX_SMOOTH_GRID_MAX_AXIS_CELLS
+							|| cell.z < -ROBLOX_SMOOTH_GRID_MAX_AXIS_CELLS || cell.z > ROBLOX_SMOOTH_GRID_MAX_AXIS_CELLS)
+						return fail("Roblox SmoothGrid cell coordinates exceed the terrain limit.");
+					minimum.x = std::min(minimum.x, cell.x);
+					minimum.y = std::min(minimum.y, cell.y);
+					minimum.z = std::min(minimum.z, cell.z);
+					maximum.x = std::max(maximum.x, cell.x);
+					maximum.y = std::max(maximum.y, cell.y);
+					maximum.z = std::max(maximum.z, cell.z);
+				}
+			}
+			cell_offset += run.count;
+		}
+	}
+	if (occupied_cells == 0)
+		return fail("Roblox SmoothGrid contained no terrain cells.");
+
+	const int source_min_y = minimum.y;
+	const AABB bounds(Vector3(minimum), Vector3(maximum - minimum + Vector3i(1, 1, 1)));
+	const int imported_height = std::clamp(static_cast<int>(bounds.size.y) + 2, 4, 256);
+	_chunks.clear();
+	_chunk_height = imported_height;
+	_begin_edit();
+	previous_chunk = Vector3i();
+	offset = 2;
+	chunk_count = 0;
+	while (offset < p_source.size()) {
+		if (!read_smooth_grid_chunk(p_source, offset, chunk_count, previous_chunk, error))
+			return fail(error);
+		int cell_offset = 0;
+		while (cell_offset < ROBLOX_SMOOTH_GRID_CHUNK_CELLS) {
+			RobloxSmoothGridRun run;
+			if (!read_smooth_grid_run(p_source, offset, cell_offset, run, error))
+				return fail(error);
+			if (run.material != 0 && run.occupancy != 0) {
+				for (int index = cell_offset; index < cell_offset + run.count; ++index) {
+					const Vector3i cell = smooth_grid_cell(previous_chunk, index);
+					const int y = cell.y - source_min_y;
+					if (y < 0 || y >= _chunk_height)
+						continue;
+					const int cx = cell.x >= 0 ? cell.x / _chunk_size : (cell.x - _chunk_size + 1) / _chunk_size;
+					const int cz = cell.z >= 0 ? cell.z / _chunk_size : (cell.z - _chunk_size + 1) / _chunk_size;
+					const int lx = cell.x - cx * _chunk_size;
+					const int lz = cell.z - cz * _chunk_size;
+					if (lx < 0 || lx >= _chunk_size || lz < 0 || lz >= _chunk_size)
+						continue;
+					const ChunkPosition key(cx, cz);
+					auto it = _chunks.find(key);
+					if (it == _chunks.end()) {
+						Chunk chunk;
+						chunk.samples.resize(_chunk_size * _chunk_height * _chunk_size);
+						it = _chunks.emplace(key, std::move(chunk)).first;
+					}
+					const uint32_t sample_index = static_cast<uint32_t>(_index(lx, y, lz));
+					Sample &destination = it->second.samples[sample_index];
+					if (destination.sdf == SDF_OUTSIDE && destination.material == MATERIAL_AIR) {
+						it->second.active_indices.push_back(sample_index);
+						it->second.active_count++;
+					}
+					destination.sdf = quantize_sdf(occupancy_to_sdf(static_cast<uint32_t>(run.occupancy)));
+					destination.material = static_cast<uint8_t>(run.material);
+				}
+			}
+			cell_offset += run.count;
+		}
+	}
+	_mark_full_rebuild();
+	_end_edit();
+
+	result["success"] = true;
+	result["bounds"] = bounds;
+	result["occupied_cells"] = occupied_cells;
+	result["source_chunks"] = chunk_count;
+	result["water_cells"] = water_cells;
+	result["source_min_y"] = source_min_y;
+	return result;
+}
+
 PackedInt32Array TerrainData::get_chunk_blocks(int p_cx, int p_cz) const {
 	auto it = _chunks.find(ChunkPosition(p_cx, p_cz));
 	if (it == _chunks.end()) return PackedInt32Array();
@@ -1007,6 +1211,7 @@ void TerrainData::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_voxel_block_channels", "bx", "by", "bz", "sdf", "render_material", "source_material", "source_min_y"), &TerrainData::set_voxel_block_channels);
 	ClassDB::bind_method(D_METHOD("set_voxel_blocks_channels", "block_positions", "block_offsets", "sdf", "render_material", "source_material", "water_samples", "source_min_y"), &TerrainData::set_voxel_blocks_channels);
 	ClassDB::bind_method(D_METHOD("set_material_occupancy_samples", "samples"), &TerrainData::set_material_occupancy_samples);
+	ClassDB::bind_method(D_METHOD("load_roblox_smooth_grid", "source"), &TerrainData::load_roblox_smooth_grid);
 	ClassDB::bind_method(D_METHOD("get_chunk_blocks", "cx", "cz"), &TerrainData::get_chunk_blocks);
 	ClassDB::bind_method(D_METHOD("has_chunk", "cx", "cz"), &TerrainData::has_chunk);
 	ClassDB::bind_method(D_METHOD("get_chunk_positions"), &TerrainData::get_chunk_positions);

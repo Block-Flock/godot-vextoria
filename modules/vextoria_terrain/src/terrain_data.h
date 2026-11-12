@@ -64,6 +64,7 @@ public:
 	// Solid and water samples are accepted together so one edit transaction
 	// produces one shared SDF/material field and one dirty-region revision.
 	void set_material_occupancy_samples(const PackedInt32Array &p_samples);
+	Dictionary load_roblox_smooth_grid(const PackedByteArray &p_source);
 	PackedInt32Array get_chunk_blocks(int p_cx, int p_cz) const;
 
 	bool has_chunk(int p_cx, int p_cz) const;
