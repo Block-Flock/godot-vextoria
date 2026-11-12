@@ -1015,7 +1015,7 @@ void RobloxSmoothTerrainManager::_vextoria_process(double delta) {
 	// streaming cadence again.
 	if (_force_stream_update || !_streaming_complete || movement_refresh_due || _stream_accumulator >= 0.35) {
 		_stream_accumulator = 0.0;
-		_update_streaming(_force_stream_update);
+		_update_streaming();
 		_force_stream_update = false;
 		_last_stream_position = _viewer_position;
 	}
@@ -1027,7 +1027,7 @@ void RobloxSmoothTerrainManager::rebuild_all() {
 	_startup_streaming = true;
 	_streaming_complete = false;
 	_force_stream_update = true;
-	_update_streaming(true);
+	_update_streaming();
 }
 
 void RobloxSmoothTerrainManager::clear() {
@@ -1284,7 +1284,7 @@ double RobloxSmoothTerrainManager::_distance_to_chunk(const RenderKey &key) cons
 	return RobloxSmoothLodOctreePolicy::distance_to_bounds(key, _viewer_positions, _data->get_cell_size());
 }
 
-void RobloxSmoothTerrainManager::_update_streaming(bool force) {
+void RobloxSmoothTerrainManager::_update_streaming() {
 	if (_data.is_null()) {
 		_streaming_complete = false;
 		_required_chunk_count = 0;
@@ -1364,7 +1364,7 @@ void RobloxSmoothTerrainManager::_update_streaming(bool force) {
 		needed.insert(key);
 		auto existing = _rendered.find(key);
 		const bool dirty = _dirty_render_keys.find(key) != _dirty_render_keys.end();
-		if (force || existing == _rendered.end() || existing->second.collision != collision || dirty)
+		if (existing == _rendered.end() || existing->second.collision != collision || dirty)
 			candidates.push_back({key, collision, distance, 0});
 	}
 	std::unordered_map<RenderKey, uint8_t, RenderKeyHash> needed_border_masks;

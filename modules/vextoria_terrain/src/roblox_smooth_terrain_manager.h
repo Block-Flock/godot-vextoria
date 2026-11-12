@@ -159,7 +159,7 @@ private:
 	bool _replacement_region_ready(
 			const RenderKey &p_stale_key,
 			const std::unordered_set<RenderKey, RenderKeyHash> &p_needed) const;
-	void _update_streaming(bool p_force);
+	void _update_streaming();
 	double _distance_to_chunk(const RenderKey &p_key) const;
 	MeshPair _build_chunk_mesh(const RenderKey &p_key, uint8_t p_retained_border_mask);
 	void _install_chunk(const RenderKey &p_key, bool p_collision, uint8_t p_retained_border_mask, MeshPair &p_meshes);
